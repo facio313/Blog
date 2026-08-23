@@ -1,0 +1,124 @@
+services:
+  blogDb:
+    image: postgres:17.11-alpine@sha256:5d61573b31c206ae538c85893edeb6e320e1a9ffd838c0f9dca927fb6f765fa4
+    platform: linux/arm64
+    container_name: blogDbDev
+    init: true
+    environment:
+      POSTGRES_DB: blog
+      POSTGRES_USER: blog
+      POSTGRES_PASSWORD: blog-development-password
+    volumes:
+      - blog_dev_postgres_data:/var/lib/postgresql/data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+      - /var/run/postgresql:rw,noexec,nosuid,nodev,size=16m,mode=3775
+    networks:
+      - blog-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U blog -d blog']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  blogServer:
+    image: bonifacio-blog-server:dev
+    platform: linux/arm64
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+      args:
+        PORTFOLIO_BRANCH: ${PORTFOLIO_BRANCH:?run Compose through scripts/portfolio-auth-mode.sh}
+        PORTFOLIO_AUTH_MODE: ${PORTFOLIO_AUTH_MODE:?run Compose through scripts/portfolio-auth-mode.sh}
+    container_name: blogServerDev
+    user: '10001:10001'
+    init: true
+    read_only: true
+    depends_on:
+      blogDb:
+        condition: service_healthy
+    environment:
+      PORTFOLIO_BRANCH: ${PORTFOLIO_BRANCH:?run Compose through scripts/portfolio-auth-mode.sh}
+      PORTFOLIO_AUTH_MODE: ${PORTFOLIO_AUTH_MODE:?run Compose through scripts/portfolio-auth-mode.sh}
+      NODE_ENV: development
+      BLOG_HOST: 0.0.0.0
+      BLOG_PORT: '9176'
+      BLOG_DATABASE_URL: postgresql://blog:blog-development-password@blogDb:5432/blog
+      BLOG_PUBLIC_BASE_URL: http://127.0.0.1:5176/blog
+      BLOG_CONTENT_BUNDLE_PATH: /app/content/seed/posts.json
+      BLOG_AUTO_MIGRATE: 'true'
+      BLOG_SEED_ON_START: 'true'
+      BLOG_LOG_LEVEL: info
+    ports:
+      - '127.0.0.1:9176:9176'
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+    networks:
+      - blog-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:9176/blog/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  blogWeb:
+    image: bonifacio-blog-web:dev
+    platform: linux/arm64
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        PORTFOLIO_BRANCH: ${PORTFOLIO_BRANCH:?run Compose through scripts/portfolio-auth-mode.sh}
+        PORTFOLIO_AUTH_MODE: ${PORTFOLIO_AUTH_MODE:?run Compose through scripts/portfolio-auth-mode.sh}
+    container_name: blogWebDev
+    user: '101:101'
+    init: true
+    read_only: true
+    depends_on:
+      blogServer:
+        condition: service_healthy
+    environment:
+      PORTFOLIO_BRANCH: ${PORTFOLIO_BRANCH:?run Compose through scripts/portfolio-auth-mode.sh}
+      PORTFOLIO_AUTH_MODE: ${PORTFOLIO_AUTH_MODE:?run Compose through scripts/portfolio-auth-mode.sh}
+    ports:
+      - '127.0.0.1:5176:8080'
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+    networks:
+      - blog-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/healthz']
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+
+networks:
+  blog-dev:
+    name: blog-dev
+    driver: bridge
+
+volumes:
+  blog_dev_postgres_data:
+    name: blog-dev-postgres-data

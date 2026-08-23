@@ -1,0 +1,89 @@
+name: Validate
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev
+      - codex
+      - 'codex-feature-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blog-validate-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    name: Test and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PORTFOLIO_BRANCH: ${{ github.head_ref || github.ref_name }}
+      NODE_ENV: test
+      BLOG_DATABASE_URL: postgresql://blog:blog-ci-password@127.0.0.1:5432/blog
+      BLOG_PUBLIC_BASE_URL: http://127.0.0.1:5176/blog
+      BLOG_AUTO_MIGRATE: 'true'
+      BLOG_SEED_ON_START: 'false'
+    services:
+      postgres:
+        image: postgres:17.11-alpine@sha256:5d61573b31c206ae538c85893edeb6e320e1a9ffd838c0f9dca927fb6f765fa4
+        env:
+          POSTGRES_DB: blog
+          POSTGRES_USER: blog
+          POSTGRES_PASSWORD: blog-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U blog -d blog"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Resolve portfolio authentication contract
+        run: |
+          set -Eeuo pipefail
+          PORTFOLIO_AUTH_MODE="$(sh scripts/portfolio-auth-mode.sh print)"
+          printf 'PORTFOLIO_AUTH_MODE=%s\n' "$PORTFOLIO_AUTH_MODE" >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.23.2
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate source and application
+        run: |
+          set -Eeuo pipefail
+          npm run portfolio-auth:check
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+          npm audit --omit=dev --audit-level=high
+
+      - name: Validate deployment declarations
+        env:
+          BLOG_IMAGE_TAG: '0000000000000000000000000000000000000000'
+        run: |
+          set -Eeuo pipefail
+          sh -n scripts/portfolio-auth-mode.sh
+          sh -n scripts/test-portfolio-auth-mode.sh
+          sh -n apps/web/docker/blog-web-entrypoint.sh
+          bash -n .github/scripts/smoke-runtime-images.sh
+          docker compose config --quiet
+          docker compose --file docker-compose.prod.yml config --quiet

@@ -1,2 +1,22 @@
 # Git worktrees (AI tool workspaces)
 worktrees/
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Local configuration and runtime data
+.env
+.env.*
+!.env.example
+.runtime/
+*.log
+.DS_Store
+
+# Editor files
+.idea/
+.vscode/
