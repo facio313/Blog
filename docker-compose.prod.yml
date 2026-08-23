@@ -1,0 +1,84 @@
+# Application services only. The shared PostgreSQL service/network/data are managed separately.
+services:
+  blogServer:
+    image: ghcr.io/facio313/blog-server:${BLOG_IMAGE_TAG:?set the exact lowercase 40-character commit SHA}
+    platform: linux/arm64
+    container_name: blogServer
+    user: '10001:10001'
+    init: true
+    read_only: true
+    environment:
+      PORTFOLIO_BRANCH: ${PORTFOLIO_BRANCH:?set the deployed source branch}
+      PORTFOLIO_AUTH_MODE: ${PORTFOLIO_AUTH_MODE:?resolve the branch authentication contract}
+      NODE_ENV: production
+      BLOG_HOST: 0.0.0.0
+      BLOG_PORT: '9176'
+      BLOG_DATABASE_URL: ${BLOG_DATABASE_URL:?set the dedicated cksDB database URL}
+      BLOG_PUBLIC_BASE_URL: ${BLOG_PUBLIC_BASE_URL:-https://bonifacio.work/blog}
+      BLOG_CONTENT_BUNDLE_PATH: /app/content/seed/posts.json
+      BLOG_AUTO_MIGRATE: 'true'
+      BLOG_SEED_ON_START: 'true'
+      BLOG_LOG_LEVEL: ${BLOG_LOG_LEVEL:-info}
+    ports:
+      - '127.0.0.1:9176:9176'
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+    networks:
+      - blog
+      - cksDB
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:9176/blog/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  blogWeb:
+    image: ghcr.io/facio313/blog-web:${BLOG_IMAGE_TAG:?set the exact lowercase 40-character commit SHA}
+    platform: linux/arm64
+    container_name: blogWeb
+    user: '101:101'
+    init: true
+    read_only: true
+    depends_on:
+      blogServer:
+        condition: service_healthy
+    environment:
+      PORTFOLIO_BRANCH: ${PORTFOLIO_BRANCH:?set the deployed source branch}
+      PORTFOLIO_AUTH_MODE: ${PORTFOLIO_AUTH_MODE:?resolve the branch authentication contract}
+    ports:
+      - '127.0.0.1:5176:8080'
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+    networks:
+      - blog
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/healthz']
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+
+networks:
+  blog:
+    name: blog
+    driver: bridge
+  cksDB:
+    external: true
+    name: cksDB

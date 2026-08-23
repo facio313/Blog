@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "categoryAliases": {
+    "Design Pattern": "DesignPattern"
+  },
+  "quarantinePaths": ["Web/ㅁ http vs https.md"],
+  "reviewPaths": [
+    "ETC/2022-09-08-JDBC.md",
+    "Java/2022-10-31-Properties.md",
+    "Java/2022-10-31-JDBC.md",
+    "Java/2022-11-05-방법론.md",
+    "Web/ㅁ파이썬 웹소켓.md"
+  ]
+}
