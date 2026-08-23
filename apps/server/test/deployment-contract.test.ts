@@ -137,6 +137,12 @@ describe('repository deployment contract', () => {
     )
     expect(testStage).not.toContain('postgres.integration.test.ts')
 
+    const runtimeStage = serverDockerfile.split(' AS runtime\n', 2)[1]
+    expect(runtimeStage).toBeDefined()
+    expect(runtimeStage).toContain('RUN chmod -R a=rX /app')
+    expect(runtimeStage).toContain('RUN test ! -w /app')
+    expect(runtimeStage).not.toContain('chown -R 10001:10001 /app')
+
     const publishStep = namedStep(publish, 'Publish the smoke-tested immutable images')
     expect(publishStep.if).toBe("github.event.workflow_run.head_branch == 'main'")
     expect(text(publishStep.run, 'image publish command')).toContain(

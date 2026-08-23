@@ -40,6 +40,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
+report_error() {
+  status=$?
+  echo "Runtime smoke failed near line ${BASH_LINENO[0]} (exit ${status})." >&2
+  return "$status"
+}
+trap report_error ERR
+
 database_password="$(openssl rand -hex 24)"
 database_url="postgresql://blog:${database_password}@postgres:5432/blog"
 
@@ -69,6 +76,7 @@ if [[ "$database_ready" != true ]]; then
   echo "PostgreSQL runtime smoke dependency did not become ready." >&2
   exit 1
 fi
+echo "PostgreSQL runtime smoke dependency is ready."
 
 docker run --detach \
   --name "$server_container" \
@@ -108,6 +116,7 @@ if [[ "$server_ready" != true ]]; then
   echo "Server runtime image did not migrate, seed, and become healthy." >&2
   exit 1
 fi
+echo "Server runtime image is healthy."
 
 [[ "$(docker exec "$server_container" id -u)" == 10001 ]]
 [[ "$(docker exec "$server_container" id -g)" == 10001 ]]
@@ -120,6 +129,7 @@ docker exec "$server_container" node -e \
 docker exec --env "BLOG_DATABASE_URL=${database_url}" "$server_container" node -e \
   "const{Client}=require('pg');const c=new Client({connectionString:process.env.BLOG_DATABASE_URL});c.connect().then(()=>c.query('SELECT (SELECT count(*) FROM schema_migrations)::int AS migrations, (SELECT count(*) FROM posts)::int AS posts')).then(r=>{if(r.rows[0].migrations<1||r.rows[0].posts<1)process.exitCode=1}).finally(()=>c.end())" \
   >/dev/null
+echo "Server permissions, published content, and database state passed."
 
 [[ "$(docker image inspect --format '{{ index .Config.Labels "work.bonifacio.portfolio.branch" }}' "$SERVER_RUNTIME_IMAGE")" == "$PORTFOLIO_BRANCH" ]]
 [[ "$(docker image inspect --format '{{ index .Config.Labels "work.bonifacio.portfolio.auth-mode" }}' "$SERVER_RUNTIME_IMAGE")" == "$PORTFOLIO_AUTH_MODE" ]]
@@ -164,6 +174,7 @@ if [[ "$web_ready" != true ]]; then
   echo "Web runtime image did not become healthy." >&2
   exit 1
 fi
+echo "Web runtime image is healthy."
 
 [[ "$(docker exec "$web_container" id -u)" == 101 ]]
 [[ "$(docker exec "$web_container" id -g)" == 101 ]]

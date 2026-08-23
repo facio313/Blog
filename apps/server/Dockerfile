@@ -60,10 +60,11 @@ COPY apps/server/package.json ./package.json
 COPY apps/server/migrations ./migrations
 COPY content/seed/posts.json ./content/seed/posts.json
 
-RUN chown -R 10001:10001 /app \
-    && chmod -R u=rwX,go=rX /app
+RUN chmod -R a=rX /app
 
 USER 10001:10001
+RUN test ! -w /app \
+    && test -r /app/content/seed/posts.json
 EXPOSE 9176
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=6 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:9176/blog/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
