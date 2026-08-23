@@ -22,6 +22,7 @@ env:
   SERVER_IMAGE: ghcr.io/facio313/blog-server
   WEB_IMAGE: ghcr.io/facio313/blog-web
   POSTGRES_RUNTIME_IMAGE: postgres:17.11-alpine@sha256:5d61573b31c206ae538c85893edeb6e320e1a9ffd838c0f9dca927fb6f765fa4
+  DEPLOY_KEY_FINGERPRINT: SHA256:BoCoHZtR6rBBACdV6GKHnnuJxL8nJqk2/hyPlSUD1xs
 
 jobs:
   publish:
@@ -177,6 +178,20 @@ jobs:
           printf '%s\n' "$DEPLOY_KEY" | tr -d '\r' > "$HOME/.ssh/deploy_key"
           chmod 600 "$HOME/.ssh/deploy_key"
           trap 'rm -f "$HOME/.ssh/deploy_key"' EXIT
+
+          actual_deploy_key_fingerprint="$(
+            ssh-keygen -y -f "$HOME/.ssh/deploy_key" |
+              ssh-keygen -lf - -E sha256 |
+              awk '{print $2}'
+          )" || {
+            printf '::error::DEPLOY_KEY is not a valid SSH private key\n'
+            exit 1
+          }
+          [[ "$actual_deploy_key_fingerprint" == "$DEPLOY_KEY_FINGERPRINT" ]] || {
+            printf '::error::DEPLOY_KEY does not match the Blog server key\n'
+            exit 1
+          }
+          unset actual_deploy_key_fingerprint
 
           printf '%s\n' \
             '[ssh.bonifacio.work]:22022 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII91ovdQZMg9NpUyjjFSS0Ra0SEuYuAw4Uv3GTv6J92F' \
