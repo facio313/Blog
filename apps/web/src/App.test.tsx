@@ -84,6 +84,9 @@ describe('Bonifacio Notes app', () => {
     )
     expect(screen.getByRole('link', { name: 'All notes' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('button', { name: '검색 열기' })).toBeInTheDocument()
+    const portfolioLink = screen.getByRole('link', { name: '← Bonifacio' })
+    expect(portfolioLink).toHaveAttribute('href', 'https://bonifacio.work/')
+    expect(portfolioLink).not.toHaveAttribute('target')
     expect(screen.getByText('1 public notes')).toBeInTheDocument()
   })
 

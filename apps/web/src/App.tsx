@@ -179,7 +179,17 @@ function SiteChrome({ children, meta, activeCategory, onSearch }: ChromeProps) {
 function UtilityBar({ onSearch }: { onSearch: () => void }) {
   return (
     <div className="utility-bar">
-      <span>Bonifacio / Independent blog</span>
+      <div className="utility-context">
+        <a
+          className="bonifacio-return-link"
+          href="https://bonifacio.work/"
+          aria-label="← Bonifacio"
+        >
+          <span aria-hidden="true">←</span>
+          <span>Bonifacio</span>
+        </a>
+        <span className="utility-section">/ Independent blog</span>
+      </div>
       <button className="search-trigger" type="button" aria-label="검색 열기" onClick={onSearch}>
         <Search size={16} strokeWidth={1.8} aria-hidden="true" />
         <span>Search</span>
