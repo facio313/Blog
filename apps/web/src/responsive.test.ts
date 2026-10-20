@@ -43,23 +43,19 @@ function contrastRatio(foreground: string, background: string): number {
 }
 
 describe('responsive CSS contracts', () => {
-  it('uses a fluid rail, bounded content canvas, safe areas, and a tablet-first single column', () => {
+  it('bounds the canvas, respects safe areas, and reflows tiles on smaller screens', () => {
     const root = compact(cssBlock(':root'))
-    const compactDesktop = compact(cssBlock('@media (max-width: 1230px)'))
     const mobile = compact(cssBlock('@media (max-width: 900px)'))
+    const phone = compact(cssBlock('@media (max-width: 600px)'))
 
-    expect(root).toContain('--rail-width: clamp(16rem, 38vw, 38rem)')
-    expect(root).toContain('--content-max: 112rem')
-    expect(root).toContain('--safe-top: env(safe-area-inset-top, 0px)')
-    expect(root).toContain('--safe-right: env(safe-area-inset-right, 0px)')
-    expect(root).toContain('--safe-bottom: env(safe-area-inset-bottom, 0px)')
-    expect(root).toContain('--safe-left: env(safe-area-inset-left, 0px)')
-    expect(compactDesktop).toContain(
-      'grid-template-columns: 2.3rem minmax(4.5rem, 0.7fr) minmax(0, 1fr) 4.8rem 2rem',
-    )
-    expect(compactDesktop).not.toContain('--rail-width')
-    expect(mobile).toContain('.site-shell { display: block; }')
+    expect(root).toContain('--content-max: 86rem')
+    for (const edge of ['top', 'right', 'bottom', 'left']) {
+      expect(root).toContain(`--safe-${edge}: env(safe-area-inset-${edge}, 0px)`)
+    }
+    expect(compact(cssBlock('.post-tiles'))).toContain('repeat(4, minmax(0, 1fr))')
+    expect(mobile).toContain('repeat(2, minmax(0, 1fr))')
     expect(mobile).toContain('.article-aside, .article-aside.empty { display: none; }')
+    expect(phone).toContain('grid-template-columns: minmax(0, 1fr)')
     expect(indexHtml).toMatch(/viewport-fit=cover/)
   })
 
@@ -83,7 +79,7 @@ describe('responsive CSS contracts', () => {
   it('keeps modal headers and footers fixed while their result and navigation regions scroll', () => {
     const searchDialog = compact(cssBlock('.search-dialog'))
     const searchPanel = compact(cssBlock('.search-panel'))
-    const searchScroll = compact(cssBlock('.search-scroll', 1))
+    const searchScroll = compact(cssBlock('.search-scroll'))
     const mobile = compact(cssBlock('@media (max-width: 900px)'))
 
     expect(searchDialog).toContain('height: 100dvh')
@@ -96,40 +92,32 @@ describe('responsive CSS contracts', () => {
   })
 
   it('provides short-height and reduced-motion modes without removing information', () => {
-    const shortDesktop = compact(cssBlock('@media (min-width: 901px) and (max-height: 700px)'))
+    const shortScreen = compact(cssBlock('@media (max-height: 700px)'))
     const reducedMotion = compact(cssBlock('@media (prefers-reduced-motion: reduce)'))
 
-    expect(shortDesktop).toContain('.category-nav { margin-top: 0.75rem; }')
-    expect(shortDesktop).toContain('.rail-block { display: none; }')
+    expect(shortScreen).toContain('.search-panel form { margin-top: 1.5rem; }')
+    expect(shortScreen).toContain('.mobile-category-nav a { min-height: 2.75rem;')
     expect(reducedMotion).toContain('animation-duration: 0.01ms !important')
+    expect(reducedMotion).toContain('animation-delay: 0ms !important')
     expect(reducedMotion).toContain('transition-duration: 0.01ms !important')
+    expect(reducedMotion).toContain('transition-delay: 0ms !important')
   })
 
-  it('keeps small metadata and focus indicators above their contrast thresholds', () => {
-    const smallTextPairs = [
-      ['#8c8c87', '#090909'],
-      ['#83837d', '#090909'],
-      ['#686863', '#f6f4ee'],
-      ['#666660', '#f6f4ee'],
-      ['#67566b', '#f6cdff'],
-    ] as const
-    const focusPairs = [
-      ['#dfff4f', '#090909'],
-      ['#090909', '#f6f4ee'],
-      ['#090909', '#f6cdff'],
-    ] as const
-
-    for (const [foreground, background] of smallTextPairs) {
-      expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5)
+  it('keeps actual text and focus colors above their contrast thresholds', () => {
+    const root = cssBlock(':root')
+    const token = (name: string) => {
+      const match = root.match(new RegExp(`--${name}: (#[0-9a-f]{6})`))
+      if (!match?.[1]) throw new Error(`Missing color token: ${name}`)
+      return match[1]
     }
-    for (const [foreground, background] of focusPairs) {
-      expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(3)
+    for (const foreground of ['paper', 'muted', 'accent', 'mint']) {
+      expect(contrastRatio(token(foreground), token('ink'))).toBeGreaterThanOrEqual(4.5)
     }
-
-    expect(compact(cssBlock('.category-nav a small'))).toContain('color: #8c8c87')
-    expect(compact(cssBlock('.rail-footer'))).toContain('color: #83837d')
-    expect(compact(cssBlock('.post-index-number', 1))).toContain('color: #686863')
-    expect(compact(cssBlock('.article-aside li a::before'))).toContain('color: #666660')
-    expect(compact(cssBlock('.article-footer .eyebrow'))).toContain('color: #67566b')
+    for (const tileBackground of ['accent', 'mint']) {
+      expect(contrastRatio(token('ink'), token(tileBackground))).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(contrastRatio(token('accent'), token('ink'))).toBeGreaterThanOrEqual(3)
+    expect(compact(cssBlock('.category-nav a small'))).toContain('color: var(--muted)')
+    expect(compact(cssBlock('.post-tiles .tone-0 .post-row'))).toContain('color: var(--ink)')
   })
 })

@@ -1,17 +1,45 @@
-import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'framer-motion'
-import { ArrowDownRight, ArrowLeft, ArrowUpRight, Menu, Search, X } from 'lucide-react'
+import {
+  AnimatePresence,
+  MotionConfig,
+  motion,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+} from 'framer-motion'
+import {
+  ArrowDownRight,
+  ArrowLeft,
+  ArrowUpRight,
+  LayoutGrid,
+  List,
+  Menu,
+  Search,
+  X,
+} from 'lucide-react'
 import {
   Fragment,
   type FormEvent,
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
-import { Link, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import {
+  Link,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import { getMeta, getPost, getPosts, isNotFound } from './api'
+import { CategoryLinks } from './CategoryLinks'
+import { motionEase } from './motion'
+import { collectionUrl } from './navigation'
 import type { MetaResponse, PostDetail, PostSummary } from './types'
 
 const emptyMeta: MetaResponse = {
@@ -79,15 +107,19 @@ function usePageMetadata(title: string, description: string, isArticle = false):
 }
 
 function ScrollManager(): null {
-  const { pathname, hash } = useLocation()
+  const { pathname, hash, state } = useLocation()
+  const previousPathname = useRef(pathname)
 
   useEffect(() => {
+    const pathnameChanged = previousPathname.current !== pathname
+    previousPathname.current = pathname
+    if (state?.preserveScroll) return
     if (hash) {
       window.requestAnimationFrame(() => document.querySelector(hash)?.scrollIntoView())
-    } else {
-      window.scrollTo({ top: 0, behavior: 'auto' })
+    } else if (pathnameChanged) {
+      window.scrollTo({ top: 0, behavior: 'instant' })
     }
-  }, [hash, pathname])
+  }, [hash, pathname, state])
   return null
 }
 
@@ -99,36 +131,46 @@ interface ChromeProps {
 }
 
 function SiteChrome({ children, meta, activeCategory, onSearch }: ChromeProps) {
+  const { pathname, search, hash } = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const reduceMotion = useReducedMotion()
   const mobileTriggerRef = useRef<HTMLButtonElement>(null)
   const closeMobile = useCallback(() => {
     setMobileOpen(false)
-    window.setTimeout(() => mobileTriggerRef.current?.focus(), 460)
   }, [])
+  const restoreMobileFocus = useCallback(() => {
+    window.requestAnimationFrame(() => mobileTriggerRef.current?.focus({ preventScroll: true }))
+  }, [])
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname, search, hash])
 
   return (
     <div className="site-shell">
       <a className="skip-link" href="#main-content">
         본문으로 바로가기
       </a>
-      <div className="ambient-grid" aria-hidden="true" />
-      <motion.div
-        className="ambient-orb"
-        aria-hidden="true"
-        animate={reduceMotion ? {} : { x: [0, 28, -10, 0], y: [0, -20, 18, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      <aside className="index-rail" aria-label="블로그 인덱스">
+      <header className="site-header">
         <Link className="wordmark" to="/" aria-label="Bonifacio Notes 홈">
-          <span className="wordmark-dot" aria-hidden="true" />
-          B/Notes
+          <span className="wordmark-symbol" aria-hidden="true">
+            b<span>/</span>
+          </span>
+          <span>
+            bonifacio<small>personal field notes</small>
+          </span>
         </Link>
+        <Link
+          className="header-index-link"
+          to={collectionUrl(pathname, new URLSearchParams(search).get('view'))}
+        >
+          the index <ArrowDownRight size={16} aria-hidden="true" />
+        </Link>
+        <UtilityBar onSearch={onSearch} />
         <button
           ref={mobileTriggerRef}
           className="mobile-menu-trigger"
           type="button"
+          aria-label="Index"
           aria-expanded={mobileOpen}
           aria-controls="mobile-index"
           onClick={() => setMobileOpen(true)}
@@ -136,34 +178,22 @@ function SiteChrome({ children, meta, activeCategory, onSearch }: ChromeProps) {
           <span>Index</span>
           <Menu size={19} aria-hidden="true" />
         </button>
+      </header>
 
-        <div className="rail-block rail-intro">
-          <p className="eyebrow">A field index since 2022</p>
-          <p>
-            배운 것, 만든 것,
-            <br />
-            잊기 전에 적어 둔 것.
-          </p>
-        </div>
+      <main id="main-content">{children}</main>
 
-        <CategoryLinks
-          categories={meta.categories}
-          activeCategory={activeCategory}
-          className="category-nav"
-        />
-
-        <div className="rail-footer">
+      <footer className="site-footer">
+        <Link to="/">
+          b/notes<span aria-hidden="true">.</span>
+        </Link>
+        <p>계속 배우고, 계속 기록합니다.</p>
+        <div>
           <span>{meta.stats.posts} public notes</span>
-          <span>Seoul · KST</span>
+          <span>Seoul · Since 2022</span>
         </div>
-      </aside>
+      </footer>
 
-      <main id="main-content">
-        <UtilityBar onSearch={onSearch} />
-        {children}
-      </main>
-
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={restoreMobileFocus}>
         {mobileOpen ? (
           <MobileIndex
             categories={meta.categories}
@@ -179,52 +209,12 @@ function SiteChrome({ children, meta, activeCategory, onSearch }: ChromeProps) {
 function UtilityBar({ onSearch }: { onSearch: () => void }) {
   return (
     <div className="utility-bar">
-      <span>Bonifacio / Independent blog</span>
       <button className="search-trigger" type="button" aria-label="검색 열기" onClick={onSearch}>
         <Search size={16} strokeWidth={1.8} aria-hidden="true" />
         <span>Search</span>
         <kbd>/</kbd>
       </button>
     </div>
-  )
-}
-
-function CategoryLinks({
-  categories,
-  activeCategory,
-  className,
-  onSelect,
-}: {
-  categories: MetaResponse['categories']
-  activeCategory?: string | undefined
-  className: string
-  onSelect?: (() => void) | undefined
-}) {
-  return (
-    <nav className={className} aria-label="카테고리">
-      <Link
-        className={!activeCategory ? 'is-active' : ''}
-        to="/#post-index"
-        aria-current={!activeCategory ? 'page' : undefined}
-        onClick={onSelect}
-      >
-        <span aria-hidden="true">↳</span>
-        <span>All notes</span>
-      </Link>
-      {categories.map((category) => (
-        <Link
-          className={activeCategory === category.name ? 'is-active' : ''}
-          to={`/?category=${encodeURIComponent(category.name)}#post-index`}
-          aria-current={activeCategory === category.name ? 'page' : undefined}
-          onClick={onSelect}
-          key={category.name}
-        >
-          <span aria-hidden="true">↳</span>
-          <span>{category.name}</span>
-          <small>{String(category.count).padStart(2, '0')}</small>
-        </Link>
-      ))}
-    </nav>
   )
 }
 
@@ -238,6 +228,7 @@ function MobileIndex({
   onClose: () => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const reduceMotion = useReducedMotion()
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -268,13 +259,15 @@ function MobileIndex({
         event.preventDefault()
         onClose()
       }}
-      initial={{ y: '-100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '-100%' }}
-      transition={{ duration: 0.42, ease: [0.2, 0.8, 0.2, 1] }}
+      initial={reduceMotion ? false : { opacity: 0, x: '12%', rotateY: 18 }}
+      animate={{ opacity: 1, x: 0, rotateY: 0 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: '-8%', rotateY: -12 }}
+      transition={{ duration: reduceMotion ? 0 : 0.4, ease: motionEase }}
     >
       <div className="mobile-index-head">
-        <span>B/Notes · Index</span>
+        <span>
+          explore<span className="accent">.</span>
+        </span>
         <button type="button" onClick={onClose} aria-label="인덱스 닫기" autoFocus>
           <X aria-hidden="true" />
         </button>
@@ -282,7 +275,7 @@ function MobileIndex({
       <CategoryLinks
         categories={categories}
         activeCategory={activeCategory}
-        className="mobile-category-nav"
+        variant="menu"
         onSelect={onClose}
       />
       <p className="mobile-index-note">Field notes from Seoul · Since 2022</p>
@@ -291,6 +284,7 @@ function MobileIndex({
 }
 
 function SearchDialog({ onClose }: { onClose: () => void }) {
+  const reduceMotion = useReducedMotion()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<PostSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -358,12 +352,18 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
     >
       <motion.div
         className="search-panel"
-        initial={{ opacity: 0, scale: 0.985 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.985 }}
+        initial={reduceMotion ? false : { opacity: 0, x: 80, rotateY: 24 }}
+        animate={{ opacity: 1, x: 0, rotateY: 0 }}
+        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -40, rotateY: -12 }}
+        transition={{ duration: reduceMotion ? 0 : 0.42, ease: motionEase }}
       >
         <header>
-          <p className="eyebrow">Find a note</p>
+          <p className="search-wordmark">
+            search<span className="accent">.</span>
+            <span className="search-heading-echo" aria-hidden="true">
+              your notes
+            </span>
+          </p>
           <button type="button" onClick={onClose} aria-label="검색 닫기">
             <X aria-hidden="true" />
           </button>
@@ -390,7 +390,12 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
               {loading ? 'Searching…' : query ? `${results.length} results` : 'Recent notes'}
             </p>
             {results.map((post, index) => (
-              <Link to={`/posts/${post.slug}`} onClick={onClose} key={post.slug}>
+              <Link
+                to={`/posts/${post.slug}`}
+                state={{ category: post.category }}
+                onClick={onClose}
+                key={post.slug}
+              >
                 <span>{String(index + 1).padStart(2, '0')}</span>
                 <strong>
                   <BreakableTitle value={post.title} />
@@ -422,23 +427,199 @@ function useMeta(): MetaResponse {
   return meta
 }
 
-function HomePage({ meta, onSearch }: { meta: MetaResponse; onSearch: () => void }) {
+function PanoramaHeading({ isReading }: { isReading: boolean }) {
+  const reduceMotion = useReducedMotion()
+  const trackRef = useRef<HTMLParagraphElement>(null)
+  const motionLabelRef = useRef<HTMLSpanElement>(null)
+  const titleTailRef = useRef<HTMLSpanElement>(null)
+  const [motionOffset, setMotionOffset] = useState(0)
+  const transition = { duration: reduceMotion ? 0 : 0.85, ease: motionEase }
+
+  useLayoutEffect(() => {
+    const track = trackRef.current
+    const label = motionLabelRef.current
+    const tail = titleTailRef.current
+    const viewport = track?.parentElement
+    if (!track || !label || !tail || !viewport) return
+    const measure = () =>
+      setMotionOffset(
+        Math.max(
+          tail.offsetLeft + tail.offsetWidth / 2,
+          label.offsetLeft + label.offsetWidth - viewport.clientWidth,
+        ),
+      )
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div className="hero-copy">
+      <motion.p
+        className="hero-kicker"
+        initial={reduceMotion ? false : { opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.65, ease: motionEase }}
+      >
+        bonifacio / personal field notes
+      </motion.p>
+      <motion.p
+        ref={trackRef}
+        role={isReading ? undefined : 'heading'}
+        aria-level={isReading ? undefined : 1}
+        aria-label={isReading ? undefined : 'notes. in motion'}
+        className="panorama-title"
+        data-section={isReading ? 'motion' : 'notes'}
+        initial={false}
+        animate={{ x: isReading ? -motionOffset : 0 }}
+        transition={transition}
+      >
+        <span className="hero-title" aria-hidden={isReading}>
+          note
+          <span ref={titleTailRef} className="hero-title-tail">
+            s
+          </span>
+          <span className="accent">.</span>
+        </span>
+        <span ref={motionLabelRef} className="hero-subtitle" aria-hidden={!isReading}>
+          in motion
+        </span>
+      </motion.p>
+    </div>
+  )
+}
+
+function HomeIntro({
+  meta,
+  onSearch,
+  visible,
+}: {
+  meta: MetaResponse
+  onSearch: () => void
+  visible: boolean
+}) {
+  const reduceMotion = useReducedMotion()
+  const transition = { duration: reduceMotion ? 0 : 0.72, ease: motionEase }
+
+  return (
+    <motion.div
+      className="home-intro"
+      aria-hidden={!visible}
+      inert={!visible}
+      initial={false}
+      animate={{ height: visible ? 'auto' : 0 }}
+      transition={transition}
+    >
+      <motion.header
+        className="hero"
+        initial={false}
+        animate={{ y: visible ? '0%' : '-100%' }}
+        transition={transition}
+      >
+        <nav className="hero-menu" aria-label="기록 탐색">
+          <motion.a
+            href="#post-index"
+            initial={reduceMotion ? false : { opacity: 0, x: 64, rotateY: 55 }}
+            animate={{ opacity: 1, x: 0, rotateY: 0 }}
+            transition={{ duration: 0.65, ease: motionEase, delay: 0.16 }}
+          >
+            <span>read</span>
+            <small>기록 읽기</small>
+            <ArrowUpRight aria-hidden="true" />
+          </motion.a>
+          <motion.a
+            href="#topic-index"
+            initial={reduceMotion ? false : { opacity: 0, x: 64, rotateY: 55 }}
+            animate={{ opacity: 1, x: 0, rotateY: 0 }}
+            transition={{ duration: 0.65, ease: motionEase, delay: 0.23 }}
+          >
+            <span>explore</span>
+            <small>주제 둘러보기</small>
+            <ArrowUpRight aria-hidden="true" />
+          </motion.a>
+          <motion.button
+            type="button"
+            onClick={onSearch}
+            initial={reduceMotion ? false : { opacity: 0, x: 64, rotateY: 55 }}
+            animate={{ opacity: 1, x: 0, rotateY: 0 }}
+            transition={{ duration: 0.65, ease: motionEase, delay: 0.3 }}
+          >
+            <span>search</span>
+            <small>다시 찾기</small>
+            <Search aria-hidden="true" />
+          </motion.button>
+        </nav>
+        <motion.div
+          className="hero-side"
+          initial={reduceMotion ? false : { opacity: 0, x: 36 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: motionEase, delay: 0.25 }}
+        >
+          <p className="hero-side-label">a mind in progress</p>
+          <div className="note-signal" aria-hidden="true">
+            {[28, 44, 63, 40, 81, 58, 100, 72, 46, 66, 35, 53, 24].map((height, index) => (
+              <span
+                key={index}
+                style={{ height: `${height}%`, animationDelay: `${index * 45}ms` }}
+              />
+            ))}
+          </div>
+          <p className="hero-statement">
+            배우고, 만들고.
+            <br />
+            다시 꺼내 읽는 기록.
+          </p>
+          <p className="hero-description">
+            개발하며 만난 개념과 시행착오.
+            <br />
+            아직 완성되지 않아서, 계속 쓰는 중입니다.
+          </p>
+        </motion.div>
+        <div className="hero-meta">
+          <span>
+            <i aria-hidden="true" /> Always learning, always noting
+          </span>
+          <span>
+            {String(meta.stats.posts).padStart(2, '0')} notes{' '}
+            <span className="meta-divider">/</span> {String(meta.stats.categories).padStart(2, '0')}{' '}
+            topics
+          </span>
+        </div>
+      </motion.header>
+    </motion.div>
+  )
+}
+
+function NotesIndex({ meta, reading = false }: { meta: MetaResponse; reading?: boolean }) {
   const reduceMotion = useReducedMotion()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { hash, pathname } = useLocation()
+  const view = searchParams.get('view') === 'list' ? 'list' : 'tiles'
   const category = searchParams.get('category') || undefined
   const [posts, setPosts] = useState<PostSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
-  const currentTitle = category ? `${category} 기록` : '최근 기록'
+  const resultsRef = useRef<HTMLDivElement>(null)
+  const [pendingHeight, setPendingHeight] = useState(0)
+  const CountHeading = reading ? 'h1' : 'p'
+  const setView = (next: 'list' | 'tiles') => {
+    const params = new URLSearchParams(searchParams)
+    if (next === 'list') params.set('view', next)
+    else params.delete('view')
+    void navigate({ search: params.toString(), hash }, { replace: true, preventScrollReset: true })
+  }
 
   usePageMetadata(
-    'Bonifacio Notes',
+    reading ? category || 'All notes' : 'Bonifacio Notes',
     '개발하며 배운 것, 만든 것, 잊기 전에 적어 둔 것을 다시 읽을 수 있게 정리한 기술 블로그.',
   )
 
   useEffect(() => {
     const controller = new AbortController()
     let active = true
+    setPendingHeight(resultsRef.current?.getBoundingClientRect().height ?? 0)
     setLoading(true)
     setFailed(false)
     void getPosts(category ? { category } : {}, controller.signal)
@@ -458,78 +639,118 @@ function HomePage({ meta, onSearch }: { meta: MetaResponse; onSearch: () => void
     }
   }, [category])
 
+  const collectionTools = (
+    <div className="collection-tools">
+      <CountHeading id={reading ? 'post-index-title' : undefined} aria-live="polite">
+        {loading ? '불러오는 중' : `${posts.length} notes`} <span>최신 기록부터</span>
+      </CountHeading>
+      <div className="view-switch" role="group" aria-label="글 보기 방식">
+        <button
+          type="button"
+          aria-label="목록 보기"
+          aria-pressed={view === 'list'}
+          onClick={() => setView('list')}
+        >
+          <List size={19} aria-hidden="true" />
+          <span>list</span>
+        </button>
+        <button
+          type="button"
+          aria-label="타일 보기"
+          aria-pressed={view === 'tiles'}
+          onClick={() => setView('tiles')}
+        >
+          <LayoutGrid size={17} aria-hidden="true" />
+          <span>tiles</span>
+        </button>
+      </div>
+    </div>
+  )
+
   return (
-    <SiteChrome meta={meta} activeCategory={category} onSearch={onSearch}>
-      <header className="hero">
-        <div className="hero-copy">
-          <motion.p
-            className="hero-kicker"
-            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
-          >
-            Technical notes · learning archive · occasional detours
-          </motion.p>
-          <motion.h1
-            initial={reduceMotion ? false : { opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
-          >
-            기억은
-            <br />
-            <span>정리될 때</span>
-            <br />
-            비로소 내 것이 된다.
-          </motion.h1>
-        </div>
-        <div className="hero-meta">
-          <p>개발하며 만난 개념과 시행착오를 한 편씩 다시 읽을 수 있는 기록으로 만듭니다.</p>
-          <a href="#post-index">
-            최근 기록 보기
-            <ArrowDownRight size={20} aria-hidden="true" />
-          </a>
-        </div>
-      </header>
-
-      <section className="post-index" id="post-index" aria-labelledby="post-index-title">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Recently catalogued</p>
-            <h2 id="post-index-title">{currentTitle}</h2>
-          </div>
-          <p>{loading ? 'Loading' : `${posts.length} notes · newest → oldest`}</p>
-        </div>
-
-        {failed ? (
-          <ErrorState />
-        ) : loading ? (
-          <LoadingRows />
-        ) : posts.length > 0 ? (
-          <PostList posts={posts} />
+    <>
+      <section
+        className={`post-index${reading ? ' reading-collection' : ''}`}
+        id="post-index"
+        aria-labelledby="post-index-title"
+      >
+        {reading ? (
+          <div className="section-heading">{collectionTools}</div>
         ) : (
-          <div className="empty-state">
-            <p>이 분류에는 공개된 기록이 아직 없습니다.</p>
-            <Link to="/#post-index">모든 기록으로 돌아가기</Link>
-          </div>
+          <>
+            <p className="eyebrow collection-eyebrow">bonifacio / the reading room</p>
+            <div id="topic-index" className="index-navigation">
+              <CategoryLinks
+                categories={meta.categories}
+                activeCategory={category}
+                variant="index"
+                headingId="post-index-title"
+              />
+              {collectionTools}
+            </div>
+          </>
         )}
+
+        <div ref={resultsRef} style={{ minHeight: loading ? pendingHeight : 0 }}>
+          {failed ? (
+            <ErrorState />
+          ) : loading ? (
+            <LoadingRows />
+          ) : posts.length > 0 ? (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={`${category || 'all'}-${view}`}
+                initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -20 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2, ease: motionEase }}
+              >
+                <PostList posts={posts} view={view} />
+              </motion.div>
+            </AnimatePresence>
+          ) : (
+            <div className="empty-state">
+              <p>이 분류에는 공개된 기록이 아직 없습니다.</p>
+              <Link to={collectionUrl(pathname, view)}>모든 기록으로 돌아가기</Link>
+            </div>
+          )}
+        </div>
       </section>
-    </SiteChrome>
+    </>
   )
 }
 
-function PostList({ posts }: { posts: PostSummary[] }) {
+function PostList({ posts, view = 'list' }: { posts: PostSummary[]; view?: 'list' | 'tiles' }) {
   const reduceMotion = useReducedMotion()
+  const [searchParams] = useSearchParams()
+  const requestedView = searchParams.get('view')
+  const viewQuery =
+    requestedView === 'list' || requestedView === 'tiles' ? `?view=${requestedView}` : ''
   return (
-    <div className="post-list">
+    <div className={`post-list ${view === 'tiles' ? 'post-tiles' : 'post-rows'}`}>
       {posts.map((post, index) => (
         <motion.div
           key={post.slug}
-          initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.35 }}
-          transition={{ delay: Math.min(index, 8) * 0.045 }}
+          className={`post-entry tone-${index % 5}`}
+          initial={
+            reduceMotion
+              ? false
+              : {
+                  opacity: 0,
+                  x: view === 'tiles' ? 0 : 36,
+                  y: view === 'tiles' ? 20 : 0,
+                  rotateY: view === 'tiles' ? -12 : 0,
+                }
+          }
+          whileInView={{ opacity: 1, x: 0, y: 0, rotateY: 0 }}
+          viewport={{ once: true, amount: 0.08 }}
+          transition={{ duration: 0.55, ease: motionEase, delay: Math.min(index % 6, 5) * 0.045 }}
         >
-          <Link className="post-row" to={`/posts/${post.slug}`}>
+          <Link
+            className="post-row"
+            to={`/posts/${post.slug}${viewQuery}`}
+            state={{ category: post.category }}
+          >
             <span className="post-index-number">{String(index + 1).padStart(2, '0')}</span>
             <span className="post-category">{post.category}</span>
             <span className="post-copy">
@@ -577,7 +798,10 @@ function ErrorState() {
   )
 }
 
-function PostPage({ meta, onSearch }: { meta: MetaResponse; onSearch: () => void }) {
+function PostPage({ onCategoryChange }: { onCategoryChange: (category: string) => void }) {
+  const reduceMotion = useReducedMotion()
+  const { pathname, search } = useLocation()
+  const indexUrl = collectionUrl(pathname, new URLSearchParams(search).get('view'))
   const { slug = '' } = useParams()
   const [post, setPost] = useState<PostDetail | null>(null)
   const [related, setRelated] = useState<PostSummary[]>([])
@@ -600,6 +824,7 @@ function PostPage({ meta, onSearch }: { meta: MetaResponse; onSearch: () => void
         if (!active) return
         setPost(response.post)
         setRelated(response.related)
+        onCategoryChange(response.post.category)
         setState('ready')
       })
       .catch((error: unknown) => {
@@ -610,57 +835,59 @@ function PostPage({ meta, onSearch }: { meta: MetaResponse; onSearch: () => void
       active = false
       controller.abort()
     }
-  }, [slug])
+  }, [onCategoryChange, slug])
 
   if (state === 'loading') {
     return (
-      <SiteChrome meta={meta} onSearch={onSearch}>
-        <div className="article-state" aria-busy="true">
-          <p className="eyebrow">Opening the archive</p>
-          <h1>기록을 펼치는 중…</h1>
-        </div>
-      </SiteChrome>
+      <div className="article-state" aria-busy="true">
+        <p className="eyebrow">Opening the archive</p>
+        <h1>기록을 펼치는 중…</h1>
+      </div>
     )
   }
 
   if (!post || state !== 'ready') {
     return (
-      <SiteChrome meta={meta} onSearch={onSearch}>
-        <div className="article-state">
-          <p className="eyebrow">
-            {state === 'missing' ? '404 / Missing note' : 'Archive unavailable'}
-          </p>
-          <h1>
-            {state === 'missing'
-              ? '이 기록은 아직 공개되지 않았습니다.'
-              : '기록을 열지 못했습니다.'}
-          </h1>
-          <Link to="/">목록으로 돌아가기</Link>
-        </div>
-      </SiteChrome>
+      <div className="article-state">
+        <p className="eyebrow">
+          {state === 'missing' ? '404 / Missing note' : 'Archive unavailable'}
+        </p>
+        <h1>
+          {state === 'missing' ? '이 기록은 아직 공개되지 않았습니다.' : '기록을 열지 못했습니다.'}
+        </h1>
+        <Link to={indexUrl}>목록으로 돌아가기</Link>
+      </div>
     )
   }
 
   return (
-    <SiteChrome meta={meta} activeCategory={post.category} onSearch={onSearch}>
-      <motion.div className="reading-progress" style={{ scaleX: progress }} />
+    <>
+      <motion.div
+        className="reading-progress"
+        style={{ scaleX: reduceMotion ? scrollYProgress : progress }}
+      />
       <article className="article-page">
         <header className="article-header">
           <div className="article-header-inner">
-            <Link className="back-link" to="/#post-index">
-              <ArrowLeft size={17} aria-hidden="true" />
-              Index
-            </Link>
+            <div className="article-heading-row">
+              <motion.h1
+                initial={reduceMotion ? false : { opacity: 0, x: 80, rotateY: 35 }}
+                animate={{ opacity: 1, x: 0, rotateY: 0 }}
+                transition={{ duration: 0.7, ease: motionEase }}
+              >
+                <BreakableTitle value={post.title} />
+              </motion.h1>
+              <Link className="back-link" to={indexUrl}>
+                <ArrowLeft size={17} aria-hidden="true" />
+                Index
+              </Link>
+            </div>
             <p className="article-classification">
-              <span>{post.category}</span>
               <time dateTime={post.publishedAt || undefined}>
                 {formatDate(post.publishedAt, true)}
               </time>
               <span>{post.readingMinutes} min read</span>
             </p>
-            <h1>
-              <BreakableTitle value={post.title} />
-            </h1>
             <p className="article-description">{post.description}</p>
           </div>
         </header>
@@ -673,7 +900,7 @@ function PostPage({ meta, onSearch }: { meta: MetaResponse; onSearch: () => void
         <footer className="article-footer">
           <p className="eyebrow">End of note</p>
           <h2>여기까지 읽었습니다.</h2>
-          <Link to="/#post-index">
+          <Link to={indexUrl}>
             다른 기록 펼치기
             <ArrowUpRight aria-hidden="true" />
           </Link>
@@ -691,7 +918,7 @@ function PostPage({ meta, onSearch }: { meta: MetaResponse; onSearch: () => void
           </section>
         ) : null}
       </article>
-    </SiteChrome>
+    </>
   )
 }
 
@@ -735,21 +962,40 @@ function ArticleTableOfContents({ html }: { html: string }) {
   )
 }
 
-function NotFoundPage({ meta, onSearch }: { meta: MetaResponse; onSearch: () => void }) {
+function NotFoundPage() {
   usePageMetadata('404', '요청한 Bonifacio Notes 페이지를 찾을 수 없습니다.')
   return (
-    <SiteChrome meta={meta} onSearch={onSearch}>
-      <div className="article-state">
-        <p className="eyebrow">404 / Off the index</p>
-        <h1>이 페이지는 인덱스 밖에 있습니다.</h1>
-        <Link to="/">홈으로 돌아가기</Link>
-      </div>
-    </SiteChrome>
+    <div className="article-state">
+      <p className="eyebrow">404 / Off the index</p>
+      <h1>이 페이지는 인덱스 밖에 있습니다.</h1>
+      <Link to="/">홈으로 돌아가기</Link>
+    </div>
   )
 }
 
 export default function App() {
+  const location = useLocation()
+  const reduceMotion = useReducedMotion()
   const meta = useMeta()
+  const isArticle = location.pathname.startsWith('/posts/')
+  const isReading = isArticle || location.pathname === '/notes'
+  const [articleCategory, setArticleCategory] = useState<{
+    pathname: string
+    category: string
+  } | null>(null)
+  const onCategoryChange = useCallback(
+    (category: string) => {
+      setArticleCategory({ pathname: location.pathname, category })
+    },
+    [location.pathname],
+  )
+  const activeCategory = isArticle
+    ? articleCategory?.pathname === location.pathname
+      ? articleCategory.category
+      : typeof location.state?.category === 'string'
+        ? location.state.category
+        : undefined
+    : new URLSearchParams(location.search).get('category') || undefined
   const [searchOpen, setSearchOpen] = useState(false)
   const searchReturnFocusRef = useRef<HTMLElement | null>(null)
   const openSearch = useCallback(() => {
@@ -764,12 +1010,14 @@ export default function App() {
     setSearchOpen(true)
   }, [])
   const closeSearch = useCallback(() => {
-    const returnTarget = searchReturnFocusRef.current
     setSearchOpen(false)
-    window.setTimeout(() => {
-      if (returnTarget?.isConnected) returnTarget.focus()
+  }, [])
+  const restoreSearchFocus = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const returnTarget = searchReturnFocusRef.current
+      if (returnTarget?.isConnected) returnTarget.focus({ preventScroll: true })
       searchReturnFocusRef.current = null
-    }, 460)
+    })
   }, [])
 
   useEffect(() => {
@@ -789,16 +1037,45 @@ export default function App() {
   }, [openSearch])
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       <ScrollManager />
-      <Routes>
-        <Route path="/" element={<HomePage meta={meta} onSearch={openSearch} />} />
-        <Route path="/posts/:slug" element={<PostPage meta={meta} onSearch={openSearch} />} />
-        <Route path="*" element={<NotFoundPage meta={meta} onSearch={openSearch} />} />
-      </Routes>
-      <AnimatePresence>
+      <SiteChrome meta={meta} activeCategory={activeCategory} onSearch={openSearch}>
+        {location.pathname === '/' || isReading ? (
+          <div className={`site-masthead ${isReading ? 'article-masthead' : 'home-masthead'}`}>
+            <PanoramaHeading isReading={isReading} />
+            <HomeIntro meta={meta} onSearch={openSearch} visible={!isReading} />
+          </div>
+        ) : null}
+        {isReading ? (
+          <CategoryLinks
+            categories={meta.categories}
+            activeCategory={activeCategory}
+            variant="reading"
+          />
+        ) : null}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={reduceMotion ? false : { opacity: 0, x: 32 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
+            transition={{ duration: reduceMotion ? 0 : 0.24, ease: motionEase }}
+          >
+            <Routes location={location}>
+              <Route path="/" element={<NotesIndex meta={meta} />} />
+              <Route path="/notes" element={<NotesIndex meta={meta} reading />} />
+              <Route
+                path="/posts/:slug"
+                element={<PostPage onCategoryChange={onCategoryChange} />}
+              />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </motion.div>
+        </AnimatePresence>
+      </SiteChrome>
+      <AnimatePresence onExitComplete={restoreSearchFocus}>
         {searchOpen ? <SearchDialog onClose={closeSearch} /> : null}
       </AnimatePresence>
-    </>
+    </MotionConfig>
   )
 }

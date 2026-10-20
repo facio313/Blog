@@ -19,6 +19,10 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 Object.defineProperty(window, 'scrollTo', { configurable: true, value: vi.fn() })
+Object.defineProperty(Element.prototype, 'scrollIntoView', {
+  configurable: true,
+  value: vi.fn(),
+})
 Object.defineProperty(window, 'requestAnimationFrame', {
   configurable: true,
   value: (callback: FrameRequestCallback) => window.setTimeout(callback, 0),

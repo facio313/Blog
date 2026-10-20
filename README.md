@@ -27,15 +27,17 @@ flowchart LR
 
 ## 사용자 경험
 
-홈은 freesourc.es에서 관찰한 “고정 인덱스 + 활자 중심 스크롤 목록” 문법을 Blog에 맞게 확장한다. 검정·종이색·회색·lilac의 제한된 팔레트와 선·공백 중심의 정보 구조는 유지하되, 실제 Blog 콘텐츠가 좁아지는 901px 미만에서는 tablet까지 단일 열 Index로 전환한다. 320px mobile부터 2560px ultrawide 및 짧은 landscape까지 별도 viewport 검증을 거치며 다음 상호작용을 추가했다.
+홈은 Zune HD의 큰 활자와 방향성 있는 모션을 출발점으로, Bonifacio의 `notes. / in motion` 콘셉트로 재구성했다. 가로로 이어지는 큰 제목, `read / explore / search` 세로 메뉴, 먹색·코럴·민트 팔레트를 쓴다. 기본은 Windows 10 Mobile을 참고한 크기별 타일 보기이며 글자 목록으로 전환할 수 있다. 기기 화면이나 브랜드를 그대로 복제하지 않는다.
 
-- DB 기반 최신 글 32개와 카테고리별 필터
-- `/` 키 또는 Search 버튼으로 여는 전체 화면 lilac 검색
-- 검색어·카테고리·본문을 대상으로 하는 PostgreSQL 검색
+- 공개 API 기반 글 목록과 카테고리 필터
+- 기본 타일 보기, `view=list`로 공유·복원되는 글자 목록, 분류 변경 시 보기 유지(기존 `view=tiles` 주소도 지원)
+- `/` 키 또는 Search 버튼으로 여는 전체 화면 검색
+- 제목·카테고리·본문을 대상으로 하는 PostgreSQL 검색
 - sanitized article HTML, syntax highlighting, 읽기 진행률, 관련 글
-- heading이 충분한 글의 sticky 목차
+- sticky 목차와 모바일 native disclosure 목차
 - 모바일 전체 화면 Index, 터치 크기 보장, 키보드 Escape 종료
-- `prefers-reduced-motion`에서 부유·reveal·slide 모션 제거
+- 왼쪽 축으로 펼쳐지는 활자·검색 전환, 순차 타일 진입, 눌림 피드백, 첫 진입 시 한 번만 펼쳐지는 파형
+- `prefers-reduced-motion`에서 이동·회전·반복 모션 제거
 - 홈 OG card와 글별 title/description/canonical metadata
 
 조사 근거와 독자적 변형의 경계는 [디자인 조사 문서](docs/DESIGN_RESEARCH.md)에, 실제 viewport·콘텐츠 순회 결과와 재검증 계약은 [반응형 QA 기록](docs/RESPONSIVE_QA.md)에 기록했다.
