@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS dependencies
+FROM node:26.12.0-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS dependencies
 WORKDIR /workspace
 
 COPY package.json package-lock.json ./
@@ -27,7 +27,7 @@ COPY tsconfig.base.json ./
 COPY apps/server apps/server
 RUN npm run build --workspace @bonifacio/blog-server
 
-FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS production-dependencies
+FROM node:26.12.0-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS production-dependencies
 WORKDIR /workspace
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/package.json
@@ -36,7 +36,7 @@ RUN npm ci --omit=dev --workspace @bonifacio/blog-server --include-workspace-roo
     && mkdir -p apps/server/node_modules \
     && npm cache clean --force
 
-FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runtime
+FROM node:26.12.0-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS runtime
 ARG PORTFOLIO_BRANCH
 ARG PORTFOLIO_AUTH_MODE
 ENV NODE_ENV=production \
