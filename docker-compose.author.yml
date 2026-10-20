@@ -1,0 +1,15 @@
+# Optional production overlay for the operator-owned Blog edge secret file.
+# Use together with docker-compose.prod.yml after the matching Nginx secret is installed.
+services:
+  blogServer:
+    environment:
+      BLOG_SSO_EDGE_SECRET: ''
+      BLOG_SSO_EDGE_SECRET_FILE: /run/secrets/blog_sso_edge_secret
+    group_add:
+      - '0'
+    secrets:
+      - blog_sso_edge_secret
+
+secrets:
+  blog_sso_edge_secret:
+    file: ${BLOG_SSO_EDGE_SECRET_HOST_FILE:-/home/cks/.config/blog/sso-edge-secret}

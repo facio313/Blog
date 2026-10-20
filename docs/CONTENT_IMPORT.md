@@ -165,6 +165,8 @@ npm run dev --workspace @bonifacio/blog-server
 
 첫 seed는 121개 row를 반영하고, 같은 bundle의 두 번째 seed는 changed 0이어야 한다. policy나 renderer 결과가 바뀌면 source hash가 같더라도 달라진 row는 갱신되어야 한다.
 
+위 갱신 규칙은 가져오기로 관리하는 글에 적용한다. Markdown 작업실에서 한 번이라도 저장한 글은 `editor_managed = true`로 전환되고 이후 seed에서 제외된다. `post_drafts`의 비공개 수정본과 `posts`의 공개본을 가져오기 데이터로 덮어쓰지 않는다. 웹 편집을 시작하지 않은 글도 seed 갱신 때 `edit_version`을 올리므로, 이전 버전을 열어 둔 에디터의 저장은 충돌로 거절된다. 원본 보관함과 seed bundle 자체는 웹 편집으로 변경되지 않는다.
+
 통합 테스트는 기존 개발 DB를 재사용하거나 비우지 않는다. 각 실행마다 `bonifacio_test_<pid>_<random>` DB를 생성하고 suite 종료 시 연결을 종료한 뒤 명시적으로 drop하며, drop 여부도 확인한다. 기본값은 로컬 `postgresql://localhost/postgres`다. 다른 role/port를 쓰면 관리 DB URL을 지정한다.
 
 ```bash

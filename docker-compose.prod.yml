@@ -22,6 +22,10 @@ services:
       BLOG_AUTO_MIGRATE: 'true'
       BLOG_SEED_ON_START: 'true'
       BLOG_LOG_LEVEL: ${BLOG_LOG_LEVEL:-info}
+      BLOG_AUTHOR_USERNAME: ${BLOG_AUTHOR_USERNAME:-cks}
+      BLOG_SSO_EDGE_SECRET: ${BLOG_SSO_EDGE_SECRET:-}
+      BLOG_SSO_EDGE_SECRET_FILE: ${BLOG_SSO_EDGE_SECRET_FILE:-}
+      BLOG_LOCAL_AUTHOR: 'false'
     ports:
       - '127.0.0.1:9176:9176'
     tmpfs:

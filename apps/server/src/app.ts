@@ -1,8 +1,10 @@
 import helmet from '@fastify/helmet'
-import Fastify, { type FastifyInstance } from 'fastify'
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify'
 import type { Pool } from 'pg'
 import { z } from 'zod'
 import { PostRepository } from './repository.js'
+import { registerAuthoring } from './authoring.js'
+import type { AuthorAuthOptions } from './author-auth.js'
 
 const listQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
@@ -17,7 +19,8 @@ const slugParamsSchema = z.object({
 
 export interface BuildAppOptions {
   pool: Pool
-  logger?: boolean | { level: string }
+  logger?: FastifyServerOptions['logger']
+  author?: AuthorAuthOptions | undefined
 }
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
@@ -80,6 +83,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     const [categories, stats] = await Promise.all([repository.categories(), repository.stats()])
     return { categories, stats }
   })
+
+  await registerAuthoring(app, options.pool, options.author)
 
   app.setNotFoundHandler(async (_request, reply) => {
     return reply.status(404).send({ error: 'not_found' })

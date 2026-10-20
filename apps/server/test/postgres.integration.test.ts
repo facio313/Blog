@@ -46,7 +46,7 @@ describe.sequential('PostgreSQL migration, seed, and public API', () => {
 
   it('uses a collision-resistant isolated database and idempotent migration/seed flow', async () => {
     expect(database.databaseName).toMatch(/^bonifacio_test_\d+_[a-f0-9]{12}$/)
-    expect(firstMigrations).toEqual(['001_initial.sql'])
+    expect(firstMigrations).toEqual(['001_initial.sql', '002_authoring.sql'])
     expect(secondMigrations).toEqual([])
     expect(firstSeedChanged).toBe(121)
     expect(secondSeedChanged).toBe(0)

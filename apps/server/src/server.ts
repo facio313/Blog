@@ -4,6 +4,7 @@ import { buildApp } from './app.js'
 import { loadConfig } from './config.js'
 import { assertDatabaseReady, createPool, migrateDatabase } from './database.js'
 import { seedFromBundle } from './seed.js'
+import { authorLogRedactions } from './author-auth.js'
 
 const config = loadConfig()
 const pool = createPool(config.databaseUrl)
@@ -19,7 +20,8 @@ async function start(): Promise<void> {
 
   const app = await buildApp({
     pool,
-    logger: { level: config.logLevel },
+    author: config.author,
+    logger: { level: config.logLevel, redact: authorLogRedactions },
   })
 
   const close = async (signal: string) => {

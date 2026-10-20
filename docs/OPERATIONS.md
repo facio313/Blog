@@ -115,6 +115,14 @@ Schema migration이 시작되기 전 실패는 기존 server/web를 그대로 �
 
 공유 `cksDB` container/network/volume과 다른 database는 Blog 배포 대상이 아니다. Blog 배포기는 이를 생성, 재시작, 중단, 삭제하지 않는다.
 
+### 작성 데이터 보존과 인증
+
+`002_authoring.sql`은 기존 글을 유지하면서 `editor_managed`, `editor_user`, `edit_version`과 별도의 `post_drafts` 테이블을 추가한다. 웹에서 저장한 글은 `editor_managed = true`가 되며 seed 대상에서 제외된다. 초안 저장은 공개 본문을 바꾸지 않고, 발행은 글 잠금과 버전 비교를 거친 하나의 transaction에서 공개본을 교체한다. seed가 관리 중인 글을 갱신할 때도 버전을 올려, 업데이트 전 화면으로 덮어쓰는 것을 막는다.
+
+백업에는 `posts`와 `post_drafts`를 함께 포함한다. 작성 기능 사용 후 `editor_managed`를 모르는 과거 server image로 되돌리면 자동 seed가 편집 내용을 덮어쓸 수 있으므로 해당 rollback은 금지한다. 장애 시 작성 API를 닫고 현재 schema 및 seed 보호와 호환되는 수정 image로 진행한다. 구버전 복귀가 불가피하면 `BLOG_SEED_ON_START=false`를 적용하고 staging에서 복구를 검증한 별도 절차가 필요하다.
+
+작성자 인증과 Blog 전용 Nginx/Authelia 설정은 [AUTHOR_AUTH.md](AUTHOR_AUTH.md)에 있다. 앱 코드 변경만으로 실제 host edge가 변경되지는 않는다. 운영 활성화 시 중앙 사용자 `cks`의 성공, 다른 계정·비로그인·위조 헤더 요청의 거부, 공개 글의 비로그인 조회 유지 여부를 각각 확인한다.
+
 ## 8. 최초 활성화 체크리스트
 
 - GitHub Repository Secret `DEPLOY_KEY`에 workflow에 고정된 공개키 지문과 짝이 맞는 Blog 전용 private key 등록

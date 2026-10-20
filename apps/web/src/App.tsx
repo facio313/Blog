@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   List,
   Menu,
+  PenLine,
   Search,
   X,
 } from 'lucide-react'
@@ -37,6 +38,8 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import { getMeta, getPost, getPosts, isNotFound } from './api'
+import { AuthorEditor } from './AuthorEditor'
+import { AuthorSessionProvider, useAuthorSession } from './AuthorSession'
 import { CategoryLinks } from './CategoryLinks'
 import { motionEase } from './motion'
 import { collectionUrl } from './navigation'
@@ -213,6 +216,10 @@ function UtilityBar({ onSearch }: { onSearch: () => void }) {
         <span aria-hidden="true">←</span>
         <span>Bonifacio</span>
       </a>
+      <Link className="header-write-link" to="/write" aria-label="글쓰기">
+        <PenLine size={16} strokeWidth={1.8} aria-hidden="true" />
+        <span>Write</span>
+      </Link>
       <button className="search-trigger" type="button" aria-label="검색 열기" onClick={onSearch}>
         <Search size={16} strokeWidth={1.8} aria-hidden="true" />
         <span>Search</span>
@@ -418,7 +425,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-function useMeta(): MetaResponse {
+function useMeta(revision: number): MetaResponse {
   const [meta, setMeta] = useState(emptyMeta)
 
   useEffect(() => {
@@ -427,7 +434,7 @@ function useMeta(): MetaResponse {
       .then(setMeta)
       .catch(() => undefined)
     return () => controller.abort()
-  }, [])
+  }, [revision])
   return meta
 }
 
@@ -803,6 +810,7 @@ function ErrorState() {
 }
 
 function PostPage({ onCategoryChange }: { onCategoryChange: (category: string) => void }) {
+  const auth = useAuthorSession()
   const reduceMotion = useReducedMotion()
   const { pathname, search } = useLocation()
   const indexUrl = collectionUrl(pathname, new URLSearchParams(search).get('view'))
@@ -891,6 +899,14 @@ function PostPage({ onCategoryChange }: { onCategoryChange: (category: string) =
                 {formatDate(post.publishedAt, true)}
               </time>
               <span>{post.readingMinutes} min read</span>
+              {auth.status === 'ready' && post.contentFormat === 'markdown' ? (
+                <Link
+                  className="article-edit-link"
+                  to={`/write?slug=${encodeURIComponent(post.slug)}`}
+                >
+                  <PenLine size={14} aria-hidden="true" />글 수정
+                </Link>
+              ) : null}
             </p>
             <p className="article-description">{post.description}</p>
           </div>
@@ -977,10 +993,17 @@ function NotFoundPage() {
   )
 }
 
+function WritePage({ onPublished }: { onPublished: () => void }) {
+  usePageMetadata('글쓰기', 'Markdown으로 기록하고, 초안을 보관하고, 글을 발행하는 개인 작업실.')
+  return <AuthorEditor onPublished={onPublished} />
+}
+
 export default function App() {
   const location = useLocation()
   const reduceMotion = useReducedMotion()
-  const meta = useMeta()
+  const [publicationRevision, setPublicationRevision] = useState(0)
+  const meta = useMeta(publicationRevision)
+  const onPublished = useCallback(() => setPublicationRevision((value) => value + 1), [])
   const isArticle = location.pathname.startsWith('/posts/')
   const isReading = isArticle || location.pathname === '/notes'
   const [articleCategory, setArticleCategory] = useState<{
@@ -1041,45 +1064,48 @@ export default function App() {
   }, [openSearch])
 
   return (
-    <MotionConfig reducedMotion="user">
-      <ScrollManager />
-      <SiteChrome meta={meta} activeCategory={activeCategory} onSearch={openSearch}>
-        {location.pathname === '/' || isReading ? (
-          <div className={`site-masthead ${isReading ? 'article-masthead' : 'home-masthead'}`}>
-            <PanoramaHeading isReading={isReading} />
-            <HomeIntro meta={meta} onSearch={openSearch} visible={!isReading} />
-          </div>
-        ) : null}
-        {isReading ? (
-          <CategoryLinks
-            categories={meta.categories}
-            activeCategory={activeCategory}
-            variant="reading"
-          />
-        ) : null}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            initial={reduceMotion ? false : { opacity: 0, x: 32 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
-            transition={{ duration: reduceMotion ? 0 : 0.24, ease: motionEase }}
-          >
-            <Routes location={location}>
-              <Route path="/" element={<NotesIndex meta={meta} />} />
-              <Route path="/notes" element={<NotesIndex meta={meta} reading />} />
-              <Route
-                path="/posts/:slug"
-                element={<PostPage onCategoryChange={onCategoryChange} />}
-              />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </motion.div>
+    <AuthorSessionProvider>
+      <MotionConfig reducedMotion="user">
+        <ScrollManager />
+        <SiteChrome meta={meta} activeCategory={activeCategory} onSearch={openSearch}>
+          {location.pathname === '/' || isReading ? (
+            <div className={`site-masthead ${isReading ? 'article-masthead' : 'home-masthead'}`}>
+              <PanoramaHeading isReading={isReading} />
+              <HomeIntro meta={meta} onSearch={openSearch} visible={!isReading} />
+            </div>
+          ) : null}
+          {isReading ? (
+            <CategoryLinks
+              categories={meta.categories}
+              activeCategory={activeCategory}
+              variant="reading"
+            />
+          ) : null}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={reduceMotion ? false : { opacity: 0, x: 32 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -24 }}
+              transition={{ duration: reduceMotion ? 0 : 0.24, ease: motionEase }}
+            >
+              <Routes location={location}>
+                <Route path="/" element={<NotesIndex meta={meta} />} />
+                <Route path="/notes" element={<NotesIndex meta={meta} reading />} />
+                <Route path="/write" element={<WritePage onPublished={onPublished} />} />
+                <Route
+                  path="/posts/:slug"
+                  element={<PostPage onCategoryChange={onCategoryChange} />}
+                />
+                <Route path="*" element={<NotFoundPage />} />
+              </Routes>
+            </motion.div>
+          </AnimatePresence>
+        </SiteChrome>
+        <AnimatePresence onExitComplete={restoreSearchFocus}>
+          {searchOpen ? <SearchDialog onClose={closeSearch} /> : null}
         </AnimatePresence>
-      </SiteChrome>
-      <AnimatePresence onExitComplete={restoreSearchFocus}>
-        {searchOpen ? <SearchDialog onClose={closeSearch} /> : null}
-      </AnimatePresence>
-    </MotionConfig>
+      </MotionConfig>
+    </AuthorSessionProvider>
   )
 }

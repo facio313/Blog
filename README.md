@@ -39,6 +39,8 @@ flowchart LR
 - 왼쪽 축으로 펼쳐지는 활자·검색 전환, 순차 타일 진입, 눌림 피드백, 첫 진입 시 한 번만 펼쳐지는 파형
 - `prefers-reduced-motion`에서 이동·회전·반복 모션 제거
 - 홈 OG card와 글별 title/description/canonical metadata
+- `/blog/write` Markdown 작업실: `.md` 가져오기·내보내기, 게시글과 같은 렌더러의 미리보기, 초안 저장·발행·기존 글 수정
+- Bonifacio 중앙 사용자 `cks` 전용 작성 권한, 다른 탭과의 저장 충돌 감지
 
 조사 근거와 독자적 변형의 경계는 [디자인 조사 문서](docs/DESIGN_RESEARCH.md)에, 실제 viewport·콘텐츠 순회 결과와 재검증 계약은 [반응형 QA 기록](docs/RESPONSIVE_QA.md)에 기록했다.
 
@@ -91,7 +93,7 @@ npm run content:bundle -- --source /Users/cksmacbook/Desktop/Develop/Project/_po
 
 ## API
 
-읽기 전용 공개 API만 제공한다. draft/review/quarantined row는 목록·검색·상세 모두에서 제외된다.
+공개 API는 읽기 전용이다. draft/review/quarantined row와 발행 전 수정본은 공개 목록·검색·상세 모두에서 제외된다.
 
 | Method | Path                    | 설명                                       |
 | ------ | ----------------------- | ------------------------------------------ |
@@ -100,7 +102,19 @@ npm run content:bundle -- --source /Users/cksmacbook/Desktop/Develop/Project/_po
 | GET    | `/blog/api/posts`       | `q`, `category`, `page`, `limit` 목록 검색 |
 | GET    | `/blog/api/posts/:slug` | sanitized 본문과 같은 분류의 관련 글       |
 
-쓰기/admin API는 의도적으로 열어 두지 않았다. 향후 추가할 때는 Bonifacio edge SSO와 Blog 전용 edge secret으로 admin route만 보호해야 하며, 독립 비밀번호나 공개 mutation endpoint를 만들면 안 된다.
+작성 API `/blog/api/author/*`는 Bonifacio edge SSO의 검증된 사용자 `cks`와 Blog 전용 edge secret을 모두 확인한다. 저장·미리보기·파일 변환 요청에는 같은 출처 확인과 CSRF 토큰(다른 웹사이트의 대리 요청을 막는 값) 검증도 적용한다. 별도 비밀번호나 로그인 세션은 만들지 않는다. 운영 인증 설정이 없으면 작성 API는 닫힌 상태로 유지된다. 연결 설정과 활성화 절차는 [작성자 인증 문서](docs/AUTHOR_AUTH.md)를 따른다.
+
+### Markdown 작성
+
+1. 헤더의 `Write`에서 작업실로 이동해 Bonifacio 계정으로 로그인한다.
+2. 새 글을 작성하거나 `.md` 파일을 불러온다. 제목·설명·카테고리·태그와 Markdown 본문을 편집하고 미리보기로 확인한다.
+3. `초안 저장`은 비공개 수정본을 DB에 저장한다. 이미 발행한 글을 편집해도 기존 공개본은 유지된다.
+4. `발행`을 누르면 현재 편집 내용을 공개본에 반영한다. 기존 글의 주소와 최초 발행 시각은 유지된다.
+5. 작업실의 글 목록에서 초안을 다시 열거나, 공개 글의 수정 링크로 기존 글을 편집한다. 내보내기는 저장 전 내용을 포함한 `.md` 파일을 만든다.
+
+파일은 UTF-8 `.md`/`.MD`, 본문은 최대 512 KiB다. 파일 앞의 YAML metadata에서 `title`, `description`, `category` 또는 `categories`, `tags`를 읽으며 본문은 그대로 보존한다. 파일의 `published`, `date`, `slug`는 자동 발행이나 기존 글의 주소 변경에 사용하지 않는다. 내보낸 파일은 `published: false`로 표시한다.
+
+공개본은 `posts`, 저장 중인 수정본은 `post_drafts`에 분리해 보관한다. 한 번이라도 웹에서 저장한 글은 `editor_managed`가 되어 가져오기/서버 재시작 때 덮어쓰지 않는다. `edit_version`이 달라진 상태의 저장은 `409 edit_conflict`로 거부하며, 브라우저에 남은 내용을 보존한 채 최신 글을 다시 불러올 수 있다. 가져오기만으로 관리하는 글의 변경도 버전에 반영된다.
 
 ## 품질 검증
 

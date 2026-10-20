@@ -68,8 +68,9 @@ async function upsertPost(client: PoolClient, post: SeedPost): Promise<boolean> 
         review_reasons = EXCLUDED.review_reasons,
         published_at = EXCLUDED.published_at,
         source_updated_at = EXCLUDED.source_updated_at,
+        edit_version = posts.edit_version + 1,
         updated_at = now()
-      WHERE ROW(
+      WHERE NOT posts.editor_managed AND ROW(
         posts.slug, posts.source_path_nfc, posts.source_hash, posts.title, posts.description,
         posts.excerpt, posts.category, posts.tags, posts.content_format, posts.content_raw,
         posts.content_html, posts.reading_minutes, posts.status, posts.review_reasons,

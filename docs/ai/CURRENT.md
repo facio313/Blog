@@ -1,4 +1,21 @@
-# 현재 작업 — Bonifacio Notes 디자인 전환
+# 현재 작업 — Markdown 작성·발행
+
+- 목표: 기존 UI에 Markdown 작성·미리보기, `.md` 가져오기·내보내기, 초안 저장·발행·기존 글 수정을 연결한다. Bonifacio 중앙 사용자 `cks`만 작성할 수 있어야 한다.
+- 권한: 2026-10-20 후속 요청으로 Blog·Bonifacio 변경의 커밋·푸시·main 반영·운영 배포와 실제 `cks` 로그인 작성 검증이 승인되었다. 운영 호스트 설정은 사용자가 지정할 서버 Codex 작업으로 전달하는 방식도 승인되었다. 다른 앱·계정의 권한이나 데이터는 변경하지 않는다.
+- 설계: 공개본 `posts`와 편집 중인 `post_drafts`를 분리한다. 편집한 글은 `editor_managed`로 표시해 seed 재실행이 덮어쓰지 않게 하고 `edit_version`으로 탭 간 충돌을 감지한다.
+- 인증: 중앙 SSO의 검증된 Remote-User와 Blog 전용 edge secret을 함께 검사한다. 소유자와 일치하지 않으면 거부한다. 개발용 작성은 명시적 opt-in과 loopback에서만 허용한다.
+- 상태: 2026-10-20 로컬 구현·검증 완료. `/blog/write`의 원문/나란히/미리보기, 제목·소개·분류·태그, `.md` 가져오기·내보내기, 초안 저장, 발행, 저장한 글 목록, 기존 Markdown 글 편집을 제공한다. HTML/text 원본과 격리된 글은 임의 변환하지 않는다. 파일의 `published` 값으로 자동 발행하지 않는다.
+- 데이터 보존: `002_authoring.sql`과 `author-repository.ts`에서 초안/공개본을 분리하고, 행 잠금·버전 비교로 오래된 편집본을 409로 거절한다. `seed.ts`는 웹에서 저장한 글을 건너뛴다. 미저장 이동·뒤로 가기·새로고침 경고를 제공하며, 충돌·로그인 만료·통신 실패 후에도 입력을 유지하고 `.md`로 내보낼 수 있다. 비공개 본문은 브라우저 저장소에 복제하지 않는다.
+- 관련 변경: Blog `codex` 작업 트리의 서버 작성/인증 모듈, 마이그레이션, 웹 에디터 및 라우터, Compose 구성과 문서. 별도 `/Users/cksmacbook/Desktop/Develop/Project/Bonifacio`에는 `ops/sso/` ACL·Nginx 작성 경로·Blog 전용 비밀 파일 공급 코드와 테스트를 추가했다. Bonifacio는 원격 main `1bd9355`의 새 커밋 15개를 보존해 통합했고, 해당 main 위의 작성 변경은 `2990047`에 있다. `dev`와 다른 작업 브랜치는 변경하지 않는다.
+- 배포 전 호환 수정: 원격 Bonifacio의 실제 코드 계약은 v2(`user < admin < chief-admin`, 필수 `portfolio-v2`, 정렬된 앱 권한)였다. Blog의 이전 역할 검사를 v2로 교체하고 중앙 브로커의 작성 API 그룹 전달도 맞췄다. 계정 `cks`와 전용 비밀값 검사는 유지한다. 변경 후 인증 테스트 58개, DB 작성 통합 9개, 타입·관련 lint·포맷 검사 통과. Bonifacio 병합 후 Python 18개 중 17개 통과·Nginx 환경 의존 1개 skip, 브로커 테스트 5개 통과.
+- 자동 검증: Node.js 22.23.2, 격리된 임시 PostgreSQL 17.9에서 서버 전체 60개 통과 후 실제 작성 경로의 권한 경계 테스트를 추가하고 작성 통합 9개를 다시 통과했다(현재 서버 테스트 총 61개). 웹 29개, 서버/웹 타입 검사와 production 빌드, 인증 분기 계약, 운영 의존성 audit(취약점 0개)을 통과했다. Bonifacio Python 계약 테스트 14개 중 13개 통과, Nginx 실행 테스트 1개는 로컬 Nginx/Docker 부재로 건너뛰었다. YAML 구성 의미 검사도 통과했다.
+- 정적 검사: 최종 Prettier·`git diff --check` 통과. `npm run lint`는 이전 디자인 작업의 Git 제외 `.runtime/*.js` 임시 스크립트에서 49개 오류가 발생했다. 제품 소스와 설정은 `npx eslint . --ignore-pattern '.runtime/**'`로 통과했으며, 기존 임시 파일이나 ESLint 규칙은 변경하지 않았다.
+- 브라우저 검증: 코덱스 내장 브라우저에서 작성→미리보기→초안 저장→발행→기존 글 수정 초안 저장, `.md` 가져오기·내보내기 원문 일치, 뒤로 가기 취소/확인과 입력 보존을 확인했다. 1280px·390px 화면과 320px 가로 넘침 0px를 확인했다. 결과 화면은 `output/playwright/markdown-editor-{desktop,mobile}.png`에 있다.
+- 로컬 미리보기: 아래 이전 작업의 fixture API 대신 실제 개발 서버/API와 격리 DB를 사용한다. `http://127.0.0.1:5176/blog/write`를 열어 두었다. `BLOG_LOCAL_AUTHOR=true`, API 9176·웹 5176은 loopback 전용이며 운영 로그인 검증을 대체하지 않는다. 임시 PostgreSQL은 127.0.0.1:55476, 개발 DB `blog_author_preview`이고 데이터 디렉터리 경로는 무시된 `.runtime/editor-postgres-path`에 기록했다. 작성한 예시 2개는 검증용이다.
+- 운영 진행: main CI·이미지 배포와 호스트 설정 연결을 진행한다. Mac의 공개 SSH 연결은 거절되며 같은 서버의 내부 주소에서도 현재 키로 관리 로그인이 되지 않았다. 사용자가 서버 Codex 전달 방식을 선택했으므로 대상 작업을 받은 뒤 호스트 설정을 전달한다. 사용자는 코덱스 브라우저에서 `cks` 로그인 완료를 알렸다. 실제 작성 성공은 배포 후 별도 확인해야 한다.
+- 다음 행동: 두 저장소 main을 푸시하고 CI 결과를 확인한다. 서버 작업은 Blog 전용 비밀값 공급, SSO ACL·Nginx 경로, 마이그레이션·백업을 실제 환경에서 검증한다. 절차는 `docs/AUTHOR_AUTH.md`, 데이터 백업과 이전 이미지 롤백 제한은 `docs/OPERATIONS.md`를 따른다. 최종 배포 SHA·Actions 결과·실제 작성 검증은 무시된 `.runtime/authoring-release-status.json`에 기록해 소스 구현과 구분한다.
+
+# 이전 작업 — Bonifacio Notes 디자인 전환
 
 - 날짜: 2026-10-20 KST
 - 배포 실패 조치: 디자인 병합 커밋 `fa260a8`은 원격 codex/main에 반영됐으나 Validate `39369985773`의 운영 의존성 audit에서 높음 4개·보통 1개가 보고되어 배포 `39370179703`이 건너뛰어졌다. 사용자 후속 요청으로 실패 수정부터 main 운영 배포 완료까지 승인받았다.
