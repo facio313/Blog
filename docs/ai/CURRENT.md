@@ -13,6 +13,8 @@
 - 브라우저 검증: 코덱스 내장 브라우저에서 작성→미리보기→초안 저장→발행→기존 글 수정 초안 저장, `.md` 가져오기·내보내기 원문 일치, 뒤로 가기 취소/확인과 입력 보존을 확인했다. 1280px·390px 화면과 320px 가로 넘침 0px를 확인했다. 결과 화면은 `output/playwright/markdown-editor-{desktop,mobile}.png`에 있다.
 - 로컬 미리보기: 아래 이전 작업의 fixture API 대신 실제 개발 서버/API와 격리 DB를 사용한다. `http://127.0.0.1:5176/blog/write`를 열어 두었다. `BLOG_LOCAL_AUTHOR=true`, API 9176·웹 5176은 loopback 전용이며 운영 로그인 검증을 대체하지 않는다. 임시 PostgreSQL은 127.0.0.1:55476, 개발 DB `blog_author_preview`이고 데이터 디렉터리 경로는 무시된 `.runtime/editor-postgres-path`에 기록했다. 작성한 예시 2개는 검증용이다.
 - 운영 진행: main CI·이미지 배포와 호스트 설정 연결을 진행한다. Mac의 공개 SSH 연결은 거절되며 같은 서버의 내부 주소에서도 현재 키로 관리 로그인이 되지 않았다. 사용자가 서버 Codex 전달 방식을 선택했으므로 대상 작업을 받은 뒤 호스트 설정을 전달한다. 사용자는 코덱스 브라우저에서 `cks` 로그인 완료를 알렸다. 실제 작성 성공은 배포 후 별도 확인해야 한다.
+- 배포 중 발견·수정: Bonifacio `2990047`은 Actions `39437766370`에서 운영 배포 성공. Blog `ffaf36c`의 main 검증은 성공했으나 이미지 실행 검사 `39437959768`에서 `js-yaml` 누락으로 배포 전 중단되었다. npm은 해당 버전을 서버 workspace의 `node_modules`에 설치하지만 Dockerfile은 루트 의존성만 복사한 것이 원인이다. 서버 전용 운영 의존성도 최종 이미지에 복사하도록 보완했다. 기존 운영 Blog는 이 실패로 변경되지 않았다.
+- 패키징 수정 검증: 임시 디렉터리에 잠금 파일 그대로 운영 의존성만 설치하고 수정된 이미지의 복사 구조를 재현했다. 운영 의존성 10개 모두 import 성공, `js-yaml` 5.5.0 및 Markdown 메타데이터 파싱 확인. 배포 계약 테스트 3개·문서 포맷·diff 검사 통과. 실제 ARM64 이미지 실행 검사는 수정 커밋의 CI가 수행한다.
 - 다음 행동: 두 저장소 main을 푸시하고 CI 결과를 확인한다. 서버 작업은 Blog 전용 비밀값 공급, SSO ACL·Nginx 경로, 마이그레이션·백업을 실제 환경에서 검증한다. 절차는 `docs/AUTHOR_AUTH.md`, 데이터 백업과 이전 이미지 롤백 제한은 `docs/OPERATIONS.md`를 따른다. 최종 배포 SHA·Actions 결과·실제 작성 검증은 무시된 `.runtime/authoring-release-status.json`에 기록해 소스 구현과 구분한다.
 
 # 이전 작업 — Bonifacio Notes 디자인 전환

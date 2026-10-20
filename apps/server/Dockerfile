@@ -33,6 +33,7 @@ COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN npm ci --omit=dev --workspace @bonifacio/blog-server --include-workspace-root=false \
+    && mkdir -p apps/server/node_modules \
     && npm cache clean --force
 
 FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runtime
@@ -55,6 +56,8 @@ RUN portfolio-auth-mode check \
 
 WORKDIR /app
 COPY --from=production-dependencies /workspace/node_modules ./node_modules
+# Keep workspace-specific production versions, such as js-yaml and argparse.
+COPY --from=production-dependencies /workspace/apps/server/node_modules ./node_modules
 COPY --from=build /workspace/apps/server/dist ./dist
 COPY apps/server/package.json ./package.json
 COPY apps/server/migrations ./migrations
