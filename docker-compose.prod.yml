@@ -7,6 +7,9 @@ services:
     user: '10001:10001'
     init: true
     read_only: true
+    cpus: 1.5
+    cpu_shares: 768
+    mem_limit: 256m
     environment:
       PORTFOLIO_BRANCH: ${PORTFOLIO_BRANCH:?set the deployed source branch}
       PORTFOLIO_AUTH_MODE: ${PORTFOLIO_AUTH_MODE:?resolve the branch authentication contract}
@@ -51,6 +54,9 @@ services:
     user: '101:101'
     init: true
     read_only: true
+    cpus: 0.75
+    cpu_shares: 512
+    mem_limit: 64m
     depends_on:
       blogServer:
         condition: service_healthy

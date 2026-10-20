@@ -50,7 +50,7 @@ scripts/portfolio-auth-mode.sh exec -- docker compose down
 
 Production Compose는 PostgreSQL을 생성하지 않는다. 운영자가 공유 `cksDB` 안에 Blog 전용 database와 최소권한 login role을 만들고, host에 이미 존재하는 external Docker network `cksDB`를 사용한다. 다른 앱의 database나 role을 재사용하지 않는다.
 
-운영 `.env`는 저장소 밖의 operator-owned 경로에 mode `0600`으로 둔다. 최소 항목은 다음과 같다.
+운영 환경은 저장소 밖의 operator-owned `/home/cks/.config/blog/production.env`에 둔다. 제한 배포기는 symlink가 아닌 `cks:cks` 소유의 mode `0600` regular file만 허용한다. 최소 항목은 다음과 같다.
 
 ```dotenv
 PORTFOLIO_BRANCH=main
@@ -88,7 +88,7 @@ Runtime image를 만들기 전에 server Docker `test` target이 동일한 `main
 
 ## 6. 제한 RPi 배포
 
-GitHub deploy job은 공개 host key를 고정한 forced-command SSH key로 다음 요청만 보낸다.
+GitHub deploy job은 공개 host key를 고정한 Blog 전용 forced-command SSH key로 다음 요청만 보낸다. Workflow는 private key에서 공개키 지문을 도출해 저장소에 고정된 Blog 배포키 지문과 일치하는지 먼저 확인한다. 서버의 해당 authorized key도 Blog 전용 래퍼에 묶여 있어 다른 애플리케이션이나 임의 shell 명령을 요청할 수 없다.
 
 ```text
 deploy blog <exact-40-character-sha>
@@ -117,10 +117,10 @@ Schema migration이 시작되기 전 실패는 기존 server/web를 그대로 �
 
 ## 8. 최초 활성화 체크리스트
 
-- GitHub Repository Secret `DEPLOY_KEY` 등록
+- GitHub Repository Secret `DEPLOY_KEY`에 workflow에 고정된 공개키 지문과 짝이 맞는 Blog 전용 private key 등록
 - GHCR package 생성/접근 정책 확인
 - RPi `cksDB`의 전용 `blog` database/login 및 backup 권한 확인
-- mode-0600 production `.env` 설치
+- `/home/cks/.config/blog/production.env`를 `cks:cks`, mode `0600`으로 설치
 - forced deploy dispatcher에 `deploy blog <sha>` 등록
 - host Nginx `/blog/` route와 TLS/loopback 연결 설치
 - Bonifacio 랜딩 앱 목록에 `/blog/` 링크 등록(별도 저장소 작업)

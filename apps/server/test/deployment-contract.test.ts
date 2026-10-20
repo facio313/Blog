@@ -64,6 +64,9 @@ describe('repository deployment contract', () => {
     })
     expect(publish['runs-on']).toBe('ubuntu-24.04-arm')
     expect(deploy['timeout-minutes']).toBe(40)
+    expect(mapping(workflow.env, 'workflow environment').DEPLOY_KEY_FINGERPRINT).toBe(
+      'SHA256:BoCoHZtR6rBBACdV6GKHnnuJxL8nJqk2/hyPlSUD1xs',
+    )
 
     const publishCondition = text(publish.if, 'publish condition')
     expect(publishCondition).toContain("github.event.workflow_run.conclusion == 'success'")
@@ -162,6 +165,10 @@ describe('repository deployment contract', () => {
     })
     const deployCommand = text(deployStep.run, 'deploy command')
     expect(deployCommand).toContain('[[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]')
+    expect(deployCommand).toContain('ssh-keygen -y -f "$HOME/.ssh/deploy_key"')
+    expect(deployCommand).toContain(
+      '[[ "$actual_deploy_key_fingerprint" == "$DEPLOY_KEY_FINGERPRINT" ]]',
+    )
     expect(deployCommand).toContain('"deploy blog $DEPLOY_SHA"')
     expect(source).not.toContain(':latest')
   })
