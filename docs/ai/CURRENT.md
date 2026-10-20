@@ -1,6 +1,10 @@
 # 현재 작업 — Bonifacio Notes 디자인 전환
 
 - 날짜: 2026-10-20 KST
+- 배포 실패 조치: 디자인 병합 커밋 `fa260a8`은 원격 codex/main에 반영됐으나 Validate `39369985773`의 운영 의존성 audit에서 높음 4개·보통 1개가 보고되어 배포 `39370179703`이 건너뛰어졌다. 사용자 후속 요청으로 실패 수정부터 main 운영 배포 완료까지 승인받았다.
+- 의존성 수정: Fastify `5.12.7`, js-yaml `5.5.0`으로 고정 버전을 올리고 잠금 파일의 fast-uri `3.1.9`/`4.2.3`, source-map-js `1.2.2`, undici `7.30.1`을 갱신했다. js-yaml이 요구하는 argparse `3.0.3`도 함께 잠겼다. 자동 검증·배포 조건과 기존 디자인은 유지한다.
+- 수정 후 로컬 검증: CI와 같은 Node.js `22.23.2`에서 운영 의존성 audit 0개, 서버 타입 검사·변경 manifest 포맷 검사 통과. 별도 loopback 포트의 임시 PostgreSQL에서 서버 테스트 15개(콘텐츠 7개, DB/API 통합 5개, 배포 계약 3개) 통과 후 임시 서버를 종료했다. 전체 테스트·빌드·ARM64 image 검증은 main CI가 수행한다.
+- 배포 완료 판정: 원격 main/codex SHA 일치, 해당 SHA의 Validate·RPi 배포 성공, 공개 웹/API 응답을 확인한다. 실행 중·완료 후의 실제 관측값은 이 worktree의 `.runtime/release-status.json`에 기록하며, 원격 근거는 [검증 실행 목록](https://github.com/facio313/Blog/actions/workflows/ci.yml)과 [배포 실행 목록](https://github.com/facio313/Blog/actions/workflows/deploy.yml)이다. 이 문서의 구현 완료 기록만으로 운영 배포를 완료로 판단하지 않는다.
 - 목표: 카테고리가 올라갈 때 글자도 자연스럽게 커지고 이전 항목은 작아지며 내려가게 한다. 카테고리 목록에서 글을 열 때 활성 항목이 아래로 내려갔다 다시 올라오는 현상을 없앤다. 기존 공통 컴포넌트, All notes의 `collection.`, 자동 화면 이동 제거, 소개 접힘 조건, 타일 디자인·모션을 유지한다.
 - 완료 조건: 홈, 목록/타일, 글 상세, 검색, 모바일 인덱스가 일관되게 동작하고 프런트엔드 테스트·빌드 및 대표 화면 검증을 통과한다.
 - 제약: 기존 공개 콘텐츠/API 계약·본문 sanitizer 유지. 2026-10-20 후속 요청으로 이번 디자인 변경의 커밋·푸시와 main 반영을 승인받았다. 운영 DB 직접 변경은 범위 밖이다. main에 먼저 들어간 Bonifacio 복귀 링크와 배포 설정을 보존하며 dev·cursor 브랜치는 변경하지 않는다.
