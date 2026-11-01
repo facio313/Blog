@@ -17,7 +17,7 @@ RUN portfolio-auth-mode check \
 COPY apps/web apps/web
 RUN npm run build --workspace @bonifacio/blog-web
 
-FROM nginx:1.29.4-alpine@sha256:4870c12cd2ca986de501a804b4f506ad3875a0b1874940ba0a2c7f763f1855b2 AS runtime
+FROM nginx:1.31.8-alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606 AS runtime
 ARG PORTFOLIO_BRANCH
 ARG PORTFOLIO_AUTH_MODE
 ENV PORTFOLIO_BRANCH=${PORTFOLIO_BRANCH} \
