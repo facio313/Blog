@@ -32,7 +32,11 @@ export interface AuthorPost extends AuthorFields {
 
 export class AuthorPostError extends Error {
   constructor(
-    readonly code: 'post_not_found' | 'unsupported_format' | 'edit_conflict',
+    readonly code:
+      | 'post_not_found'
+      | 'unsupported_format'
+      | 'edit_conflict'
+      | 'publication_requires_content',
     readonly statusCode: number,
   ) {
     super(code)
@@ -139,6 +143,13 @@ export class AuthorRepository {
     existing?: { id: string; version: number },
   ): Promise<AuthorPost> {
     const fields = normalizeFields(input)
+    // Render once, before acquiring a connection or a row lock. The exact output
+    // checked here is also the output stored in the public post.
+    const html = action === 'publish' ? renderContent(fields.contentRaw, 'markdown') : ''
+    if (action === 'publish' && !html.trim()) {
+      throw new AuthorPostError('publication_requires_content', 422)
+    }
+    const plain = action === 'publish' ? stripMarkup(html) : ''
     const client = await this.pool.connect()
     const id = existing?.id ?? randomUUID()
 
@@ -191,8 +202,6 @@ export class AuthorRepository {
           [id, fields.title, fields.description, fields.category, fields.tags, fields.contentRaw],
         )
       } else {
-        const html = renderContent(fields.contentRaw, 'markdown')
-        const plain = stripMarkup(html)
         await client.query(
           `UPDATE posts SET title = $2, description = $3, category = $4, tags = $5,
              content_raw = $6, content_html = $7, excerpt = $8, reading_minutes = $9,

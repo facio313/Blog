@@ -4,9 +4,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { FastifyInstance } from 'fastify'
 import type { Pool } from 'pg'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { buildApp } from '../src/app.js'
 import type { AuthorPost } from '../src/author-repository.js'
+import * as contentRenderer from '../src/content/render.js'
 import { createPool, migrateDatabase } from '../src/database.js'
 import { seedFromBundle } from '../src/seed.js'
 import type { SeedBundle } from '../src/types.js'
@@ -132,6 +133,7 @@ describe.sequential('authoring persistence and publication', () => {
       headers: mutationHeaders,
       payload: { contentRaw },
     })
+    const renderSpy = vi.spyOn(contentRenderer, 'renderContent')
     const response = await app.inject({
       method: 'PUT',
       url: `/blog/api/author/posts/${created.id}`,
@@ -144,6 +146,9 @@ describe.sequential('authoring persistence and publication', () => {
         version: created.version,
       },
     })
+    const renderCount = renderSpy.mock.calls.length
+    renderSpy.mockRestore()
+    expect(renderCount).toBe(1)
     expect(response.statusCode).toBe(200)
     const previousSlug = created.slug
     created = response.json<{ post: AuthorPost }>().post

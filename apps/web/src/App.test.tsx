@@ -79,6 +79,20 @@ afterEach(() => {
 })
 
 describe('Bonifacio Notes app', () => {
+  it('loads the writing route on demand and can return to public notes', async () => {
+    installFetchMock()
+    render(
+      <MemoryRouter basename="/blog/" initialEntries={['/blog/write']}>
+        <App />
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByRole('heading', { name: '작업실을 열지 못했습니다.' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: '공개 기록으로 돌아가기' }))
+    expect(await screen.findByRole('link', { name: /테스트 기록/ })).toBeInTheDocument()
+  })
+
   it('loads the database-backed index and category counts', async () => {
     installFetchMock()
     render(

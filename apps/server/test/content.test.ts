@@ -317,6 +317,36 @@ describe('redactSensitiveContent', () => {
 })
 
 describe('renderContent', () => {
+  it('keeps unlabelled, unknown, and oversized code as escaped text without guessing', () => {
+    for (const language of ['', 'not-a-language', 'text']) {
+      const code = '<script>const answer = 42;</script>'
+      const rendered = renderContent(`\`\`\`${language}\n${code}\n\`\`\``, 'markdown')
+      expect(rendered).not.toContain('<span')
+      expect(rendered).not.toContain('<script>')
+      expect(stripMarkup(rendered)).toBe(code)
+    }
+    const code = 'const answer = 42;\n'.repeat(1000)
+    const rendered = renderContent(`\`\`\`js\n${code}\`\`\``, 'markdown')
+    expect(rendered).not.toContain('<span')
+    expect(stripMarkup(rendered)).toBe(code.replace(/\s+/g, ' ').trim())
+  })
+
+  it('highlights explicit common languages and aliases', () => {
+    for (const language of ['javascript', 'js', 'java', 'sql', 'html', 'python', 'sh']) {
+      const code = language === 'html' ? '<div>hello</div>' : 'return "hello";'
+      const rendered = renderContent(`\`\`\`${language}\n${code}\n\`\`\``, 'markdown')
+      expect(rendered).toContain('hljs-')
+      expect(stripMarkup(rendered)).toBe(code)
+    }
+  })
+
+  it('avoids heading ID collisions with naturally suffixed headings', () => {
+    const rendered = renderContent('# A\n# A\n# A-2\n# A\n# A-2', 'markdown')
+    const ids = [...rendered.matchAll(/id="([^"]+)"/g)].map((match) => match[1])
+    expect(ids).toEqual(['a', 'a-2', 'a-2-2', 'a-3', 'a-2-3'])
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
   it('escapes raw Markdown HTML, preserves safe breaks, templates, code, and unique headings', () => {
     const rendered = renderContent(
       `# 반복 제목

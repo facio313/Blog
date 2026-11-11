@@ -1,4 +1,21 @@
-# 현재 작업 — Markdown 작성·발행
+# 현재 작업 — 라이브러리 성능·낭비 개선 (2026-11-12)
+
+- 목표/범위: 실제 의존성 사용 경로를 조사하고 계산·다운로드 낭비와 발견된 결함을 개선한다. 2026-11-12 후속 요청으로 실제 브라우저 검증, 발견 문제 수정, 커밋·푸시·main 반영·운영 배포까지 승인받았다. dev/cursor와 다른 앱은 변경하지 않는다.
+- 구현: `highlight.js/lib/common`으로 36개 문법만 로드하고, 언어 미지정·미지원 또는 16,384 UTF-16 코드 단위 초과 코드 블록은 HTML escape만 한다. 전체 언어 자동 판별을 제거했다. `marked`, `marked-highlight`, `sanitize-html`, `cheerio`는 유지한다.
+- 구현: 발행 검증과 저장의 Markdown 렌더링을 2회에서 1회로 줄이고 DB 연결·행 잠금 전에 처리한다. `AuthorEditor`와 전용 CSS는 React lazy/Suspense로 글쓰기 진입 때 로드한다. 나란히↔미리보기 전환 시 중복 서버 요청을 제거하고 편집 내용 직렬화·날짜 formatter를 재사용한다. 사용하지 않는 `@fontsource/gowun-batang`을 제거했다.
+- 발견된 결함: 반복 제목의 ID가 자연스러운 숫자 접미사 제목과 충돌하던 경우를 수정했다(예: `A`, `A`, `A-2`). 의존성 audit에서 high 1/moderate 1/low 1이 보고되어 `zod` 4.1.5→4.6.7, `sanitize-html` 2.17.7→2.18.2와 필요한 전이 의존성을 갱신했다. 이는 패키지 공지 기준이며 이 앱에서 실제 공격 가능성을 재현했다는 뜻은 아니다.
+- 유지 결정: Framer Motion은 카테고리 layout 전환·크기 보정·exit/focus 계약에 사용되므로 전면 재구현의 회귀 위험이 크다. React/Router, Fastify/pg/Helmet, YAML/Zod/HTML 파서는 기존 역할을 유지한다. 아이콘은 정적 named import라 전체 아이콘을 브라우저로 보내는 경로가 없고, 미사용 글꼴 제거는 설치 공간 절감이다.
+- 검증 완료: 보안 버전 갱신 후 서버 전체 85개(격리 PostgreSQL 17.9 통합 14개 포함), 웹 전체 31개, 서버/웹 타입 검사와 production 빌드, 제품 소스 ESLint(`.runtime/**` 제외), 변경 파일 Prettier, 인증 분기 계약, `git diff --check` 통과. 운영 의존성 `npm audit --omit=dev --audit-level=high` 취약점 0개. 발행 렌더링 1회, 미리보기와 공개 HTML 일치, 화면 배치 변경 시 요청 재사용, 지연 로딩 후 목록 복귀를 회귀 테스트로 확인했다.
+- 검증 중 실패: 새 웹 테스트의 fake timer가 읽기 전용 requestAnimationFrame stub을 덮어쓰려던 오류는 setTimeout/clearTimeout만 모의 처리해 수정했다. 병렬 벤치마크/서버 테스트와 겹친 화면 전환 timeout은 CPU 작업을 분리한 전체 웹 재실행에서 해소됐다. 제품 테스트 기준·timeout은 완화하지 않았다.
+- 환경: Node 22.23.2. macOS dataless 상태의 잠금 파일·설정·스크립트·정적 파일을 현재 HEAD `ebcd9b6b9729beba8c7096630e864fa425e85906`의 동일 Git blob SHA를 검증해 복원하고 `npm ci`로 의존성을 설치했다. 운영 DB/원본 콘텐츠는 변경하지 않는다. 테스트 PostgreSQL은 loopback 55487, 경로는 무시된 `.runtime/library-postgres-path`에 있다.
+- 측정: baseline과 변경 후 Vite 빌드에서 초기 JS 474.03→457.27 kB(gzip 152.64→148.18), CSS 50.70→40.19 kB(gzip 12.73→10.88). 편집기 JS 18.51 kB/CSS 10.50 kB는 글쓰기 전용 청크다. 글꼴 제거로 브라우저 다운로드가 줄었다는 의미는 아니다(원래 import되지 않음).
+- CPU 근거: Node 22.23.2/macOS, 언어 미지정 코드 10블록·9,428자, 예열 1회 후 5회 중앙값, 별도 프로세스에서 순차 실행. 기존 렌더러 182.546ms → 변경 렌더러 2.261ms(약 98.8% 감소). 양쪽은 동일한 갱신 후 의존성을 사용해 렌더러 변경 효과를 비교했다. 인위적인 표본이며 운영 지연시간을 보장하지 않는다. 기존 seed Markdown의 code token 168개 모두 언어 미지정인 것을 lexer로 확인했다. 전체 로드 문법은 192→36개다. 원본·측정 도구·출력은 무시된 `.runtime/library-*`에 있다.
+- 근거 문서: [Highlight.js API](https://highlightjs.readthedocs.io/en/latest/api.html), [Zod 공지](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), [sanitize-html 공지](https://github.com/advisories/GHSA-374f-7chj-9948). 현재 소스 버전의 구현·타입과 함께 확인했다.
+- 브라우저: production 빌드를 코덱스 내장 브라우저에서 실제 API와 격리 DB(`blog_library_browser`, loopback 55487)에 연결해 검증했다. 목록/타일, 분류 유지, 검색/Escape/포커스 복원, 편집기 청크 지연 로딩, 입력→미리보기→초안→발행→공개 글, 수정 초안의 비공개 유지, 미저장 이동 취소와 입력 보존을 확인했다. 미리보기/공개 HTML 완전 일치, 코드 색상/escape와 제목 ID 유일성 확인. 390px 상세 및 320px 편집기 가로 넘침 0px, 모바일 목차/Index 정상, console warn/error 0개. 제품 결함은 추가로 발견되지 않았다. 증빙은 `output/playwright/library-browser-{desktop,mobile}.jpg`, `library-browser-checks.json`에 있다.
+- 릴리스: 원격 main/codex 기준 SHA는 모두 `ebcd9b6b9729beba8c7096630e864fa425e85906`, main/cursor 작업 트리 clean 확인. 검증된 변경을 codex에서 커밋하고 main으로 fast-forward한 뒤 기존 Validate→ARM64 image smoke→RPi 배포 흐름을 사용한다. 최종 SHA/Actions/운영 응답은 무시된 `.runtime/library-release-status.json`에 기록해 구현 기록과 구분한다.
+- 상태: 로컬 구현·자동·브라우저 검증 완료, 커밋·배포 진행 단계. 기존 seed/DB의 저장된 HTML을 일괄 재생성하지 않았으며 렌더링 변경은 미리보기·새 발행·콘텐츠 가져오기에 적용된다. 운영 서버 부하 측정은 수행하지 않았다.
+
+# 이전 작업 — Markdown 작성·발행
 
 - 목표: 기존 UI에 Markdown 작성·미리보기, `.md` 가져오기·내보내기, 초안 저장·발행·기존 글 수정을 연결한다. Bonifacio 중앙 사용자 `cks`만 작성할 수 있어야 한다.
 - 권한: 2026-10-20 후속 요청으로 Blog·Bonifacio 변경의 커밋·푸시·main 반영·운영 배포와 실제 `cks` 로그인 작성 검증이 승인되었다. 운영 호스트 설정은 사용자가 지정할 서버 Codex 작업으로 전달하는 방식도 승인되었다. 다른 앱·계정의 권한이나 데이터는 변경하지 않는다.

@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import {
   Fragment,
+  lazy,
+  Suspense,
   type FormEvent,
   type ReactNode,
   useCallback,
@@ -38,12 +40,15 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import { getMeta, getPost, getPosts, isNotFound } from './api'
-import { AuthorEditor } from './AuthorEditor'
 import { AuthorSessionProvider, useAuthorSession } from './AuthorSession'
 import { CategoryLinks } from './CategoryLinks'
 import { motionEase } from './motion'
 import { collectionUrl } from './navigation'
 import type { MetaResponse, PostDetail, PostSummary } from './types'
+
+const AuthorEditor = lazy(() =>
+  import('./AuthorEditor').then((module) => ({ default: module.AuthorEditor })),
+)
 
 const emptyMeta: MetaResponse = {
   categories: [],
@@ -68,13 +73,20 @@ function BreakableTitle({ value }: { value: string }) {
   })
 }
 
+const shortDate = new Intl.DateTimeFormat('ko-KR', {
+  year: '2-digit',
+  month: '2-digit',
+  day: '2-digit',
+})
+const longDate = new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+})
+
 function formatDate(value: string | null, long = false): string {
   if (!value) return '날짜 미상'
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: long ? 'numeric' : '2-digit',
-    month: long ? 'long' : '2-digit',
-    day: long ? 'numeric' : '2-digit',
-  }).format(new Date(value))
+  return (long ? longDate : shortDate).format(new Date(value))
 }
 
 function setMetaContent(selector: string, content: string): void {
@@ -995,7 +1007,17 @@ function NotFoundPage() {
 
 function WritePage({ onPublished }: { onPublished: () => void }) {
   usePageMetadata('글쓰기', 'Markdown으로 기록하고, 초안을 보관하고, 글을 발행하는 개인 작업실.')
-  return <AuthorEditor onPublished={onPublished} />
+  return (
+    <Suspense
+      fallback={
+        <div className="article-state" aria-busy="true">
+          작업실을 여는 중…
+        </div>
+      }
+    >
+      <AuthorEditor onPublished={onPublished} />
+    </Suspense>
+  )
 }
 
 export default function App() {

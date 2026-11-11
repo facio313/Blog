@@ -99,11 +99,7 @@ export async function registerAuthoring(
 
 function publicationError(data: z.infer<typeof saveSchema>): string | null {
   if (data.action !== 'publish') return null
-  if (
-    !data.title.trim() ||
-    !data.contentRaw.trim() ||
-    !renderContent(data.contentRaw, 'markdown').trim()
-  ) {
+  if (!data.title.trim() || !data.contentRaw.trim()) {
     return 'publication_requires_content'
   }
   const sensitive = redactSensitiveContent(

@@ -1,5 +1,5 @@
 import { ArrowUpRight, Check, Download, FileText, PenLine, Plus, Upload } from 'lucide-react'
-import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   AuthorApiError,
@@ -201,7 +201,9 @@ function WritingRoom({
   const [preview, setPreview] = useState('')
   const [previewBusy, setPreviewBusy] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
-  const dirty = JSON.stringify(fields) !== baseline
+  const serializedFields = useMemo(() => JSON.stringify(fields), [fields])
+  const dirty = serializedFields !== baseline
+  const previewEnabled = view !== 'source'
   const dirtyRef = useRef(dirty)
   dirtyRef.current = dirty
 
@@ -258,7 +260,7 @@ function WritingRoom({
   useEffect(() => {
     const controller = new AbortController()
     setPreviewError(null)
-    if (view === 'source' || loading || !fields.contentRaw.trim()) {
+    if (!previewEnabled || loading || !fields.contentRaw.trim()) {
       setPreview('')
       setPreviewBusy(false)
       return
@@ -289,7 +291,7 @@ function WritingRoom({
       controller.abort()
       window.clearTimeout(timer)
     }
-  }, [fields.contentRaw, loading, session.csrfToken, view])
+  }, [fields.contentRaw, loading, session.csrfToken, previewEnabled])
 
   const reportError = useCallback((cause: unknown) => {
     setError(authorErrorMessage(cause))

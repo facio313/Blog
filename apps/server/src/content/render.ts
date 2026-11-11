@@ -1,5 +1,5 @@
 import { load } from 'cheerio'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/common'
 import { Marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import sanitizeHtml from 'sanitize-html'
@@ -18,10 +18,13 @@ const markdown = new Marked(
     emptyLangClass: 'hljs',
     langPrefix: 'hljs language-',
     highlight(code, language) {
-      if (language && hljs.getLanguage(language)) {
+      // Unlabelled/unknown fences are plain text. Auto-detection tries every grammar
+      // and can monopolize the API process while an author types a preview.
+      // Bound work for large pasted files even when a language is supplied.
+      if (code.length <= 16_384 && language && hljs.getLanguage(language)) {
         return hljs.highlight(code, { language }).value
       }
-      return hljs.highlightAuto(code).value
+      return escapeHtml(code)
     },
   }),
   {
@@ -122,13 +125,20 @@ function sanitize(input: string): string {
 function addHeadingIds(input: string): string {
   const $ = load(input, null, false)
   const occurrences = new Map<string, number>()
+  const usedIds = new Set<string>()
 
   $('h1, h2, h3, h4, h5, h6').each((_index, element) => {
     const heading = $(element)
     const base = slugifyHeading(heading.text())
-    const count = (occurrences.get(base) ?? 0) + 1
+    let count = (occurrences.get(base) ?? 0) + 1
+    let id = count === 1 ? base : `${base}-${count}`
+    while (usedIds.has(id)) {
+      count += 1
+      id = `${base}-${count}`
+    }
     occurrences.set(base, count)
-    heading.attr('id', count === 1 ? base : `${base}-${count}`)
+    usedIds.add(id)
+    heading.attr('id', id)
   })
 
   return $.html()

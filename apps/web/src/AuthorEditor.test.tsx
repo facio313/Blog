@@ -160,6 +160,33 @@ afterEach(() => {
 })
 
 describe('Markdown writing room', () => {
+  it('reuses the preview when changing its layout but refreshes after source edits', async () => {
+    const { fetchMock } = setup()
+    await writeFields()
+    await screen.findByRole('heading', { name: '미리보기 결과' })
+    const previews = () =>
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/author/preview')).length
+    const before = previews()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: '미리보기' }))
+      await act(() => vi.advanceTimersByTimeAsync(400))
+      fireEvent.click(screen.getByRole('button', { name: '나란히' }))
+      await act(() => vi.advanceTimersByTimeAsync(400))
+      expect(previews()).toBe(before)
+      fireEvent.click(screen.getByRole('button', { name: '원문' }))
+      fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: '변경된 본문' } })
+      await act(() => vi.advanceTimersByTimeAsync(400))
+      expect(previews()).toBe(before)
+      fireEvent.click(screen.getByRole('button', { name: '나란히' }))
+      await act(() => vi.advanceTimersByTimeAsync(400))
+      expect(previews()).toBe(before + 1)
+      expect(screen.getByText('변경된 본문', { selector: 'p' })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it.each([401, 403])(
     'requires the author session before exposing editing controls (%i)',
     async (status) => {

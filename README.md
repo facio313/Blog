@@ -114,6 +114,8 @@ npm run content:bundle -- --source /Users/cksmacbook/Desktop/Develop/Project/_po
 
 파일은 UTF-8 `.md`/`.MD`, 본문은 최대 512 KiB다. 파일 앞의 YAML metadata에서 `title`, `description`, `category` 또는 `categories`, `tags`를 읽으며 본문은 그대로 보존한다. 파일의 `published`, `date`, `slug`는 자동 발행이나 기존 글의 주소 변경에 사용하지 않는다. 내보낸 파일은 `published: false`로 표시한다.
 
+코드 블록의 구문 강조는 `js`, `ts`, `java`, `python`, `sql`, `html` 등 Highlight.js의 common 언어를 명시했을 때 적용한다. 언어 자동 판별은 수행하지 않으며, 언어가 없거나 지원하지 않는 경우와 16,384 UTF-16 코드 단위를 초과하는 큰 블록은 원문을 안전하게 escape한 일반 코드로 표시한다. 미리보기와 발행은 같은 렌더러를 사용한다.
+
 공개본은 `posts`, 저장 중인 수정본은 `post_drafts`에 분리해 보관한다. 한 번이라도 웹에서 저장한 글은 `editor_managed`가 되어 가져오기/서버 재시작 때 덮어쓰지 않는다. `edit_version`이 달라진 상태의 저장은 `409 edit_conflict`로 거부하며, 브라우저에 남은 내용을 보존한 채 최신 글을 다시 불러올 수 있다. 가져오기만으로 관리하는 글의 변경도 버전에 반영된다.
 
 ## 품질 검증
