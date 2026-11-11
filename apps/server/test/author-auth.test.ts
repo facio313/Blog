@@ -237,7 +237,7 @@ describe('explicit native local preview', () => {
 
 describe('author startup configuration', () => {
   const baseEnvironment = {
-    PORTFOLIO_BRANCH: 'codex',
+    PORTFOLIO_BRANCH: 'dev',
     PORTFOLIO_AUTH_MODE: 'local',
     NODE_ENV: 'test',
     BLOG_HOST: '127.0.0.1',

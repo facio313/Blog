@@ -10,7 +10,7 @@ set -Eeuo pipefail
 
 sh scripts/portfolio-auth-mode.sh check
 [[ "$PORTFOLIO_AUTH_MODE" == sso ]] || {
-  echo "The deploy runtime smoke expects a protected main/dev SSO build." >&2
+  echo "The deploy runtime smoke expects a protected main SSO build." >&2
   exit 1
 }
 
@@ -134,7 +134,7 @@ echo "Server permissions, published content, and database state passed."
 [[ "$(docker image inspect --format '{{ index .Config.Labels "work.bonifacio.portfolio.branch" }}' "$SERVER_RUNTIME_IMAGE")" == "$PORTFOLIO_BRANCH" ]]
 [[ "$(docker image inspect --format '{{ index .Config.Labels "work.bonifacio.portfolio.auth-mode" }}' "$SERVER_RUNTIME_IMAGE")" == "$PORTFOLIO_AUTH_MODE" ]]
 if server_contract_failure="$(docker run --rm \
-  --env PORTFOLIO_BRANCH=runtime-smoke \
+  --env PORTFOLIO_BRANCH=dev \
   --env PORTFOLIO_AUTH_MODE=local \
   "$SERVER_RUNTIME_IMAGE" 2>&1)"; then
   echo "Server runtime resolver accepted a branch/auth contract different from its build." >&2
@@ -184,7 +184,7 @@ docker exec "$web_container" nginx -t >/dev/null
 [[ "$(docker image inspect --format '{{ index .Config.Labels "work.bonifacio.portfolio.branch" }}' "$WEB_RUNTIME_IMAGE")" == "$PORTFOLIO_BRANCH" ]]
 [[ "$(docker image inspect --format '{{ index .Config.Labels "work.bonifacio.portfolio.auth-mode" }}' "$WEB_RUNTIME_IMAGE")" == "$PORTFOLIO_AUTH_MODE" ]]
 if web_contract_failure="$(docker run --rm \
-  --env PORTFOLIO_BRANCH=runtime-smoke \
+  --env PORTFOLIO_BRANCH=dev \
   --env PORTFOLIO_AUTH_MODE=local \
   "$WEB_RUNTIME_IMAGE" 2>&1)"; then
   echo "Web runtime resolver accepted a branch/auth contract different from its build." >&2

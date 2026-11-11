@@ -161,3 +161,7 @@ scripts/
   workflows/ci.yml
   workflows/deploy.yml
 ```
+
+## 개발 브랜치
+
+`main`은 운영 기준이며 구현·로컬 실행은 `dev`에서만 합니다. 작업 전에 `git fetch origin main`으로 최신 운영 기준을 확인하고 `dev`에 통합합니다. `main=sso`, `dev=local`이며 다른 브랜치는 인증 해석기가 거부합니다. CI는 두 브랜치를 검증하지만 이미지 게시와 운영 배포는 `main`만 수행합니다. 상세 절차는 [운영 문서](docs/OPERATIONS.md)를 따릅니다.

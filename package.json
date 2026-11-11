@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspace @bonifacio/blog-server && npm run build --workspace @bonifacio/blog-web",
-    "dev": "concurrently --kill-others --names server,web --prefix-colors magenta,cyan \"npm run dev --workspace @bonifacio/blog-server\" \"npm run dev --workspace @bonifacio/blog-web\"",
+    "dev": "PORTFOLIO_AUTH_MODE=local sh scripts/portfolio-auth-mode.sh exec -- concurrently --kill-others --names server,web --prefix-colors magenta,cyan \"npm run dev --workspace @bonifacio/blog-server\" \"npm run dev --workspace @bonifacio/blog-web\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",

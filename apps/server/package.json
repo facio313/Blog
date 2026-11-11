@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsup src/server.ts src/scripts/bundle-content.ts --format esm --platform node --target node22 --out-dir dist --clean",
     "content:bundle": "tsx src/scripts/bundle-content.ts",
-    "dev": "tsx watch src/server.ts",
+    "dev": "PORTFOLIO_AUTH_MODE=local sh ../../scripts/portfolio-auth-mode.sh exec -- tsx watch src/server.ts",
     "start": "node dist/server.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit --pretty false"

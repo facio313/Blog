@@ -52,7 +52,7 @@ describe('repository deployment contract', () => {
     const deploy = mapping(jobs.deploy, 'deploy job')
 
     expect(trigger).toMatchObject({ workflows: ['Validate'], types: ['completed'] })
-    expect(trigger.branches).toEqual(['dev', 'main'])
+    expect(trigger.branches).toEqual(['main'])
     expect(mapping(workflow.permissions, 'workflow permissions')).toEqual({ contents: 'read' })
     expect(mapping(publish.permissions, 'publish permissions')).toEqual({
       contents: 'read',
@@ -73,7 +73,8 @@ describe('repository deployment contract', () => {
     expect(publishCondition).toContain(
       'github.event.workflow_run.head_repository.full_name == github.repository',
     )
-    expect(publishCondition).toContain("github.event.workflow_run.head_branch != 'main'")
+    expect(publishCondition).toContain("github.event.workflow_run.head_branch == 'main'")
+    expect(publishCondition).not.toContain("github.event.workflow_run.head_branch == 'dev'")
     expect(publishCondition).toContain('github.event.workflow_run.head_sha == github.sha')
     expect(publishCondition).toContain("github.event.workflow_run.event == 'push'")
     expect(publishCondition).toContain("github.event.workflow_run.event == 'workflow_dispatch'")
@@ -245,6 +246,7 @@ describe('repository deployment contract', () => {
     expect(smoke).toContain('SELECT count(*) FROM schema_migrations')
     expect(smoke).toContain('[[ "$(docker exec "$server_container" id -u)" == 10001 ]]')
     expect(smoke).toContain('[[ "$(docker exec "$web_container" id -u)" == 101 ]]')
+    expect(smoke).toContain('--env PORTFOLIO_BRANCH=dev')
     expect(smoke).toContain('does not match image')
     expect(smoke).toContain('docker exec "$web_container" nginx -t')
     expect(smoke).toContain('"${origin}/blog/"')

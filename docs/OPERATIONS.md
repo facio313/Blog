@@ -19,10 +19,11 @@ Web image는 `/blog`를 `/blog/`로 308 redirect하고 `/blog/assets/`에는 imm
 
 [`scripts/portfolio-auth-mode.sh`](../scripts/portfolio-auth-mode.sh)가 모든 build와 runtime의 canonical resolver다.
 
-| Branch         | Mode    |
-| -------------- | ------- |
-| `main`, `dev`  | `sso`   |
-| 그 밖의 branch | `local` |
+| Branch         | Mode      |
+| -------------- | --------- |
+| `main`         | `sso`     |
+| `dev`          | `local`   |
+| 그 밖의 branch | 시작 거부 |
 
 명시적 `PORTFOLIO_BRANCH`가 우선이며, 없으면 `GITHUB_REF_NAME`, 마지막으로 현재 Git branch를 사용한다. 명시한 `PORTFOLIO_AUTH_MODE`가 branch와 다르면 실패한다. Server/Web image는 build branch와 mode를 `/etc/portfolio-auth-build` 및 OCI label에 기록하고 runtime의 두 값이 build 기록과 다르면 시작하지 않는다.
 
@@ -30,7 +31,7 @@ Web image는 `/blog`를 `/blog/`로 308 redirect하고 `/blog/assets/`에는 imm
 
 ## 3. 로컬 Compose
 
-Docker가 있는 ARM64 개발 환경에서는 resolver가 canonical 변수를 내보내게 한 뒤 Compose를 실행한다.
+최신 원격 `main`을 가져와 `dev`에 반영한 뒤 구현과 로컬 앱 실행을 한다. Docker가 있는 ARM64 개발 환경에서도 `dev`에서 resolver가 canonical 변수를 내보내게 한 뒤 Compose를 실행한다.
 
 ```sh
 scripts/portfolio-auth-mode.sh exec -- docker compose up --build
@@ -67,14 +68,14 @@ Host Nginx는 `/blog/`를 `127.0.0.1:5176`으로 proxy하고 client가 origin po
 
 ## 5. CI와 immutable image publish
 
-`Validate` workflow는 application test/build와 두 Compose 선언을 검증한다. `main` 또는 `dev`의 성공한 Validate만 deploy workflow를 깨운다. Deploy workflow는 event의 정확한 40자 `head_sha`를 다시 checkout하고 현재 checkout SHA와 비교한다.
+`Validate` workflow는 application test/build와 두 Compose 선언을 검증한다. `main`과 `dev`를 모두 검증하며, 성공한 `main` Validate만 deploy workflow를 깨운다. Deploy workflow는 event의 정확한 40자 `head_sha`를 다시 checkout하고 현재 checkout SHA와 비교한다.
 
 ARM64 runner는 다음 image를 동일한 SHA tag로 빌드한다.
 
 - `ghcr.io/facio313/blog-server:<sha>`
 - `ghcr.io/facio313/blog-web:<sha>`
 
-Runtime image를 만들기 전에 server Docker `test` target이 동일한 `main`/`dev` branch-auth build args를 fail-closed로 검증하고 typecheck와 non-DB content contract suite를 ARM64에서 다시 실행한다. 게시 전에는 정확한 두 runtime image를 digest-pinned PostgreSQL과 격리 network에서 실행하여 다음을 확인한다.
+Runtime image를 만들기 전에 server Docker `test` target이 동일한 `main/sso` branch-auth build args를 fail-closed로 검증하고 typecheck와 non-DB content contract suite를 ARM64에서 다시 실행한다. 게시 전에는 정확한 두 runtime image를 digest-pinned PostgreSQL과 격리 network에서 실행하여 다음을 확인한다.
 
 1. migration 및 seed 완료
 2. PostgreSQL-backed API readiness와 실제 published-post 조회
@@ -84,7 +85,7 @@ Runtime image를 만들기 전에 server Docker `test` target이 동일한 `main
 6. Nginx syntax, `/blog/` SPA fallback, asset cache, API proxy/cache/security headers
 7. Blog namespace 밖 `/`의 404
 
-`dev`도 동일 ARM64 build와 runtime smoke를 수행하지만 GHCR push와 RPi 배포를 하지 않는다. `main`만 smoke를 통과한 exact SHA image를 push한다. `latest` tag는 생성하지 않는다.
+`dev`는 application CI 검증만 수행하며 production image workflow를 시작하지 않는다. `main`만 ARM64 build와 runtime smoke를 통과한 exact SHA image를 push한다. `latest` tag는 생성하지 않는다.
 
 ## 6. 제한 RPi 배포
 

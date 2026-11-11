@@ -15,7 +15,7 @@ Bonifacio의 `ops/sso/role-contract.json` v2에 따라 `Remote-Groups`는 `user`
 
 최신 Nginx의 `/internal/authelia/authz`는 중앙 계정 서비스의 `/internal/catalog/authz`를 거쳐 Authelia에 세션을 확인한다. 중앙 브로커는 Blog 작성 API도 기존 앱과 같이 위 고정 앱 목록으로 권한 헤더를 추려 전달해야 한다. 운영 중 등록한 앱의 `access-*` 그룹은 Blog 파서에 그대로 전달하지 않는다. Blog는 공개 경로로 예약돼 있어 앱 카탈로그에 새로 등록하거나 `access-blog` 권한을 만들 필요가 없다. `/blog/api/author/`의 명시적 `user:cks` ACL과 서버의 동일 사용자명 검사가 작성 권한을 결정한다.
 
-`scripts/portfolio-auth-mode.sh`가 직접 실행·이미지·Compose에서 사용하는 동일한 분기 규칙을 확인한다. `main`의 인증 모드는 `sso`이며, 기능 브랜치는 `local`이다. 과거 `dev` 분기 규칙은 해석기에 남아 있지만 배포 대상으로 사용하지 않는다. 사용자명을 바꾸려면 Blog 설정과 Bonifacio의 명시적 사용자 ACL을 함께 검토해야 하며, 한쪽 설정만 변경해서 다른 사용자에게 권한이 생기지는 않는다.
+`scripts/portfolio-auth-mode.sh`가 직접 실행·이미지·Compose에서 사용하는 동일한 분기 규칙을 확인한다. `main`의 인증 모드는 `sso`, `dev`는 `local`이며 그 밖의 브랜치는 거부한다. 로컬 실행과 구현은 `dev`에서만 하고, 운영 게시·배포는 검토한 `main` 커밋에 한정한다. 사용자명을 바꾸려면 Blog 설정과 Bonifacio의 명시적 사용자 ACL을 함께 검토해야 하며, 한쪽 설정만 변경해서 다른 사용자에게 권한이 생기지는 않는다.
 
 ## 네이티브 로컬 개발
 

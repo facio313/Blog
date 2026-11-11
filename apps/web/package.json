@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b && vite build",
-    "dev": "vite --host 127.0.0.1",
-    "preview": "vite preview --host 0.0.0.0",
+    "dev": "PORTFOLIO_AUTH_MODE=local sh ../../scripts/portfolio-auth-mode.sh exec -- vite --host 127.0.0.1",
+    "preview": "PORTFOLIO_AUTH_MODE=local sh ../../scripts/portfolio-auth-mode.sh exec -- vite preview --host 0.0.0.0",
     "test": "vitest run",
     "typecheck": "tsc -b --pretty false"
   },

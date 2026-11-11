@@ -1,3 +1,13 @@
+## 2026-11-12 main/dev policy migration
+
+- User-authorized scope: preserve the latest production main and migrate implementation/local execution to dev; do not publish or deploy this policy change to main.
+- Current contract: main=sso, dev=local; other branches fail closed. CI validates both branches, and production publishing/deployment is main-only. Earlier dated tool-branch/dev-retirement notes below are historical, not current operating instructions.
+- Preservation: all remote refs were saved in a verified Git bundle outside the repository before changes. Original worktrees and dirty/untracked files were not overwritten; staging uses a separate dev checkout. Dependabot proposals remain archived, not merged.
+- Local verification: Canonical resolver matrix and main-local-run rejection passed; author/deployment contract 61 tests and server typecheck passed. The final deployment smoke fixture change passed its 3 deployment tests, Bash syntax, changed-test lint, formatting and diff checks.
+- Validation and remote commit evidence are recorded outside Git under ~/.local/share/cks-main-dev-migration/2026-11-12/Blog/. Original-worktree checkout/retirement is coordinated separately after preservation checks.
+
+---
+
 # 현재 작업 — 라이브러리 성능·낭비 개선 (2026-11-12)
 
 - 목표/범위: 실제 의존성 사용 경로를 조사하고 계산·다운로드 낭비와 발견된 결함을 개선한다. 2026-11-12 후속 요청으로 실제 브라우저 검증, 발견 문제 수정, 커밋·푸시·main 반영·운영 배포까지 승인받았다. dev/cursor와 다른 앱은 변경하지 않는다.
