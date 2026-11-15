@@ -17,7 +17,7 @@
     "fastify": "5.12.7",
     "highlight.js": "11.11.1",
     "js-yaml": "5.5.0",
-    "marked": "16.3.0",
+    "marked": "18.2.0",
     "marked-highlight": "2.2.2",
     "pg": "8.16.3",
     "sanitize-html": "2.18.2",
